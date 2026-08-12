@@ -1,6 +1,6 @@
 // src/router/index.ts
 
-import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router';
+import { createRouter, type RouteRecordRaw ,createWebHashHistory } from 'vue-router';
 
 /**
  * 路由設定清單
@@ -38,7 +38,7 @@ const routes: RouteRecordRaw[] = [
  * 使用 HTML5 History 模式 (createWebHistory)
  */
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
+  history: createWebHashHistory(import.meta.env.BASE_URL),
   routes,
 });
 
