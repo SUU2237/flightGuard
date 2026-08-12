@@ -1,0 +1,26 @@
+/* src/assets/main.css */
+
+/**
+ * 全域樣式進入點
+ * Tailwind CSS v4 起，改以單一 @import 語法載入，
+ * 不再使用 @tailwind base / components / utilities 三行舊語法
+ */
+@import "tailwindcss";
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family:
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    'PingFang TC',
+    'Microsoft JhengHei',
+    sans-serif;
+}
