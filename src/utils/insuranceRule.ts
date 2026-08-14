@@ -10,7 +10,7 @@ import {
 /**
  * 不便險理賠門檻：延誤 4 小時（換算為分鐘）
  */
-const DEFAULT_DELAY_THRESHOLD_MINUTES = 1;
+const DEFAULT_DELAY_THRESHOLD_MINUTES = 60;
 
 /**
  * 計算「表定時間」與「實際/預估時間」的時間差（分鐘）

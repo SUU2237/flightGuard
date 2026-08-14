@@ -104,8 +104,16 @@ function handleClick(): void {
 </script>
 
 <template>
+  <!-- 取消理賠用紅色系、延誤理賠用黃色系，兩者皆比一般卡片更醒目 -->
   <div
-    class="cursor-pointer rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition hover:border-blue-300 hover:shadow-md"
+    class="flex cursor-pointer flex-col rounded-xl border p-4 shadow-sm transition hover:shadow-md"
+    :class="
+      reasonType === 'CANCELLED'
+        ? 'border-2 border-red-400 bg-red-50/60 hover:border-red-500'
+        : reasonType === 'DELAY_OVER_4_HOURS'
+          ? 'border-2 border-amber-400 bg-amber-50/60 hover:border-amber-500'
+          : 'border-gray-200 bg-white hover:border-blue-300'
+    "
     @click="handleClick"
   >
     <!-- 卡片頭部：航空公司 / 航班號 / TripStatus -->

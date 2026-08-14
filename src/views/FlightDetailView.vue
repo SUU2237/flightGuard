@@ -259,20 +259,24 @@ function goBackToSearch(): void {
         </div>
 
         <!-- 起降機場 -->
-        <div class="mt-6 flex items-center justify-between rounded-xl bg-gray-50 p-4">
+        <div class="mt-6 flex items-start justify-between rounded-xl bg-gray-50 p-4">
           <div class="flex-1">
             <p class="text-xs text-gray-400">出發</p>
             <p class="text-lg font-semibold text-gray-800">{{ departureAirportName }}</p>
-            <p v-if="flight.direction === FlightDirection.Departure && flight.terminal" class="text-xs text-gray-400">
-              航廈 {{ flight.terminal }}
+            <p class="mt-0.5 min-h-4 text-xs text-gray-400">
+              <template v-if="flight.direction === FlightDirection.Departure && flight.terminal">
+                航廈 {{ flight.terminal }}
+              </template>
             </p>
           </div>
-          <div class="px-4 text-2xl text-gray-300">→</div>
+          <div class="shrink-0 self-center px-4 text-2xl text-gray-300">→</div>
           <div class="flex-1 text-right">
             <p class="text-xs text-gray-400">抵達</p>
             <p class="text-lg font-semibold text-gray-800">{{ arrivalAirportName }}</p>
-            <p v-if="flight.direction === FlightDirection.Arrival && flight.terminal" class="text-xs text-gray-400">
-              航廈 {{ flight.terminal }}
+            <p class="mt-0.5 min-h-4 text-xs text-gray-400">
+              <template v-if="flight.direction === FlightDirection.Arrival && flight.terminal">
+                航廈 {{ flight.terminal }}
+              </template>
             </p>
           </div>
         </div>
@@ -376,30 +380,56 @@ function goBackToSearch(): void {
 
       </div>
 
-      <!-- 不便險理賠資格分析卡（原本內容不變，僅移入 grid） -->
-      <div class="rounded-2xl bg-white p-6 shadow-md">
-        <h2 class="mb-3 text-base font-semibold text-gray-700">不便險理賠資格分析</h2>
-        <InsuranceBadge :eligibility="eligibility" />
+      <!-- 不便險理賠資格分析卡 -->
+      <div
+        class="flex flex-col rounded-xl border p-4 shadow-sm transition"
+        :class="
+          tripStatusLabel === '取消'
+            ? 'border-2 border-red-400 bg-red-50/70'
+            : tripStatusLabel === '延誤'
+              ? 'border-2 border-amber-400 bg-amber-50/70'
+              : 'border-gray-200 bg-slate-50/50'
+        "
+      >
+        <div class="mb-3 flex items-center justify-between">
+          <h2 class="text-base font-semibold text-gray-800">不便險理賠資格分析</h2>
+        </div>
 
-        <div class="mt-4 grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
-          <div class="rounded-lg bg-gray-50 p-3">
-            <p class="text-xs text-gray-400">判定狀態</p>
-            <p class="font-medium text-gray-700">{{ tripStatusLabel }}</p>
+        <InsuranceBadge :eligibility="eligibility" />
+        <div class="mt-4 flex flex-col gap-2.5 text-sm">
+          <div class="flex items-center justify-between rounded-lg border border-gray-200/80 bg-white px-3.5 py-2.5 shadow-xs">
+            <span class="text-xs font-medium text-gray-500">判定狀態</span>
+            <span
+              class="font-semibold"
+              :class="
+                tripStatusLabel === '取消'
+                  ? 'text-red-600'
+                  : tripStatusLabel === '延誤'
+                    ? 'text-amber-600'
+                    : 'text-gray-700'
+              "
+            >
+              {{ tripStatusLabel }}
+            </span>
           </div>
-          <div class="rounded-lg bg-gray-50 p-3">
-            <p class="text-xs text-gray-400">延誤時間</p>
-            <p class="font-medium text-gray-700">
+
+          <div class="flex items-center justify-between rounded-lg border border-gray-200/80 bg-white px-3.5 py-2.5 shadow-xs">
+            <span class="text-xs font-medium text-gray-500">延誤時間</span>
+            <span class="font-medium text-gray-800">
               {{
                 eligibility?.delayInfo?.delayMinutes !== null &&
                 eligibility?.delayInfo?.delayMinutes !== undefined
                   ? `${eligibility.delayInfo.delayMinutes} 分鐘`
                   : '--'
               }}
-            </p>
+            </span>
           </div>
-          <div class="rounded-lg bg-gray-50 p-3">
-            <p class="text-xs text-gray-400">理賠門檻</p>
-            <p class="font-medium text-gray-700">延誤 ≥ 240 分鐘（4 小時）或航班取消</p>
+
+          <div class="flex items-center justify-between rounded-lg border border-gray-200/80 bg-white px-3.5 py-2.5 shadow-xs">
+            <span class="shrink-0 text-xs font-medium text-gray-500">理賠門檻</span>
+            <span class="text-right text-xs font-medium text-gray-600 sm:text-sm">
+              延誤 ≥ 240 分鐘（4 小時）或取消
+            </span>
           </div>
         </div>
       </div>
