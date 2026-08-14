@@ -16,7 +16,6 @@ import { useTdxBaseDataStore } from '@/stores/tdxBaseData';
 import { useFidsData } from '@/composables/useFidsData';
 import SearchHeader from '@/components/search/SearchHeader.vue';
 import FlightList from '@/components/fids/FlightList.vue';
-import FlightMap from '@/components/map/FlightMap.vue';
 import type { FidsFlight } from '@/types';
 import { getTodayDateString } from '@/utils/dateTime';
 
@@ -26,9 +25,6 @@ const fids = useFidsData();
 
 /** 目前於地圖上聚焦追蹤的航班（點擊卡片後設定） */
 const selectedFlight = shallowRef<FidsFlight | null>(null);
-
-/** 是否顯示右側地圖區塊（小螢幕時預設收合，避免版面擁擠） */
-const showMapPanel = ref(true);
 
 onMounted(() => {
   // 預先載入 TDX 機場/航空公司全量快取，供搜尋輸入框做前端關鍵字篩選使用
