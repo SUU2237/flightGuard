@@ -85,6 +85,7 @@ function handleResetAll(): void {
       基礎資料載入失敗：{{ tdxStore.error }}
       <button type="button" class="ml-2 underline" @click="tdxStore.initialize(true)">重試</button>
     </div>
+    <h1 class="mb-6 font-bold text-gray-800 text-2xl text-center">航班與不便險搜尋</h1>
     <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
       <!-- 機場輸入欄 -->
       <div class="relative">
@@ -237,7 +238,6 @@ function handleResetAll(): void {
         </div>
 
         <!-- 查詢範圍切換 -->
-        <!-- 修正：對調順序，即時/未來航班放在前面（作為預設優先選項） -->
         <div class="flex rounded-lg bg-gray-100 p-1 text-sm">
           <button
             type="button"
@@ -258,17 +258,19 @@ function handleResetAll(): void {
         </div>
       </div>
 
-      <div class="flex items-center gap-2">
+      <!-- 按鈕群組：手機版水平置中 (justify-center)，電腦版靠右對齊 (lg:justify-end) -->
+      <!-- 按鈕群組：置中、等寬 (w-28)、增加頂部間距 (mt-3) -->
+      <div class="mt-6 flex w-full items-center justify-center gap-3 lg:mt-0 lg:w-auto lg:justify-end">
         <button
           type="button"
-          class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+          class="w-20 rounded-lg border border-gray-300 py-2 text-center text-sm font-medium text-gray-600 transition hover:bg-gray-50"
           @click="handleResetAll"
         >
-          全部重設
+          重設
         </button>
         <button
           type="button"
-          class="rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+          class="w-20 rounded-lg bg-blue-600 py-2 text-center text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
           :disabled="!fids.canSearch.value || fids.isLoading.value"
           @click="handleSearch"
         >
