@@ -2,8 +2,8 @@
 
 /**
  * 航空公司 IATA <-> ICAO 代碼對照表
- * 涵蓋台灣主要航空公司，供 TDX（多為 IATA 碼）與 OpenSky（使用 ICAO 碼）之間互相轉譯
- * 如有新增航空公司需求，於此表補充即可，其餘轉換函式無需修改
+ * TDX（ IATA 碼）與 OpenSky（ ICAO 碼）之間互相轉譯
+ * 如有新增航空公司需求，於此表補充即可
  */
 const AIRLINE_CODE_MAP: Record<string, string> = {
   // IATA -> ICAO
@@ -19,18 +19,16 @@ const AIRLINE_CODE_MAP: Record<string, string> = {
  * ICAO -> IATA 反向對照表
  * 由 AIRLINE_CODE_MAP 自動反轉建立，避免手動維護兩份表造成資料不一致
  */
-const AIRLINE_CODE_MAP_REVERSE: Record<string, string> = Object.entries(
-  AIRLINE_CODE_MAP,
-).reduce((acc, [iata, icao]) => {
-  acc[icao] = iata;
-  return acc;
-}, {} as Record<string, string>);
+const AIRLINE_CODE_MAP_REVERSE: Record<string, string> = 
+  //把物件拆成鍵值對的二維陣列：[ ['BR', 'EVA'], ['CI', 'CAL']... ]
+  Object.entries(AIRLINE_CODE_MAP,)
+    .reduce((acc, [iata, icao]) => {
+    acc[icao] = iata;
+    return acc;
+  }, {} as Record<string, string>);
 
 /**
  * 將航空公司 IATA 二碼轉換為 ICAO 三碼
- *
- * @param iataCode 航空公司 IATA 代碼，如 "BR"
- * @returns 對應的 ICAO 代碼，如 "EVA"；查無對照時回傳 null
  */
 export function iataToIcaoAirline(iataCode: string): string | null {
   const key = iataCode.trim().toUpperCase();
@@ -39,9 +37,6 @@ export function iataToIcaoAirline(iataCode: string): string | null {
 
 /**
  * 將航空公司 ICAO 三碼轉換為 IATA 二碼
- *
- * @param icaoCode 航空公司 ICAO 代碼，如 "EVA"
- * @returns 對應的 IATA 代碼，如 "BR"；查無對照時回傳 null
  */
 export function icaoToIataAirline(icaoCode: string): string | null {
   const key = icaoCode.trim().toUpperCase();
@@ -55,8 +50,8 @@ export function icaoToIataAirline(icaoCode: string): string | null {
  * OpenSky callsign 通常為 8 碼固定寬度並補空白（如 "EVA301  "），
  * 本函式回傳「未補空白」的邏輯呼號，比對時建議雙方皆先 trim + 轉大寫
  *
- * @param tdxFlightNumber TDX 航班號，如 "BR301"
- * @returns 轉換後的 OpenSky 呼號，如 "EVA301"；無法解析航空代碼時回傳 null
+ * param tdxFlightNumber TDX 航班號，如 "BR301"
+ * returns 轉換後的 OpenSky 呼號，如 "EVA301"；無法解析航空代碼時回傳 null
  */
 export function tdxFlightNumberToCallsign(tdxFlightNumber: string): string | null {
   const trimmed = tdxFlightNumber.trim().toUpperCase();

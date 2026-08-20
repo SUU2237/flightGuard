@@ -9,9 +9,7 @@ function padZero(num: number): string {
 
 /**
  * 取得今日日期字串，格式為 YYYY-MM-DD
- * 用於 FidsQueryParams 未指定日期時的預設值
- *
- * @returns 今日日期字串，如 "2026-07-31"
+ * 備註：JS 中 Date 物件的月份是從 0 開始計算的，所以要 +1
  */
 export function getTodayDateString(): string {
   const now = new Date();
@@ -19,11 +17,7 @@ export function getTodayDateString(): string {
 }
 
 /**
- * 將 ISO 時間字串轉換為 UI 顯示用的時分格式 (HH:mm)
- *
- * @param isoString ISO 時間字串，如 "2026-07-31T14:35:00+08:00"
- * @param fallback 當輸入為 null/undefined 或無法解析時的回傳字串，預設為 "--"
- * @returns 格式化後的時間字串，如 "14:35"
+ * 將 ISO 時間字串轉換為 UI 顯示用的時分格式 (2026-07-31T14:35:00+08:00" -> "14:35"）
  */
 export function formatToHourMinute(
   isoString: string | null | undefined,
@@ -39,10 +33,6 @@ export function formatToHourMinute(
 
 /**
  * 將 ISO 時間字串轉換為 UI 顯示用的完整日期時間格式 (YYYY/MM/DD HH:mm)
- *
- * @param isoString ISO 時間字串
- * @param fallback 當輸入為 null/undefined 或無法解析時的回傳字串，預設為 "--"
- * @returns 格式化後的日期時間字串，如 "2026/07/31 14:35"
  */
 export function formatToFullDateTime(
   isoString: string | null | undefined,
@@ -60,10 +50,7 @@ export function formatToFullDateTime(
 }
 
 /**
- * 判斷指定 ISO 時間字串是否為「今天」（依使用者本機時區判定）
- *
- * @param isoString ISO 時間字串
- * @returns 是否為今天；輸入無效時回傳 false
+ * 判斷指定 ISO 時間字串是否為「今天」（避免 1 年前的今天也被誤判為今天）
  */
 export function isToday(isoString: string | null | undefined): boolean {
   if (!isoString) return false;
@@ -82,10 +69,6 @@ export function isToday(isoString: string | null | undefined): boolean {
 /**
  * 計算兩個 ISO 時間字串之間的時間差（分鐘）
  * 通用時間差計算工具，與不便險門檻邏輯無關（不便險專用計算請見 utils/insuranceRule.ts）
- *
- * @param fromISO 起始時間 ISO 字串
- * @param toISO 結束時間 ISO 字串
- * @returns 時間差分鐘數（toISO - fromISO），任一輸入無效時回傳 null
  */
 export function diffInMinutes(
   fromISO: string | null | undefined,

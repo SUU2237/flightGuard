@@ -1,4 +1,3 @@
-<!-- 修正：新增全站共用 AppHeader，統一置於所有頁面最上方 -->
 <script setup lang="ts">
 import AppHeader from '@/components/common/AppHeader.vue';
 </script>

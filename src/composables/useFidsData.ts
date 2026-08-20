@@ -31,7 +31,7 @@ export function useFidsData() {
   const direction = ref<FlightDirection>(FlightDirection.Departure);
   /** 查詢日期，預設為今日 */
   const queryDate = ref<string>(getTodayDateString());
-  /** 新增：查詢範圍模式，預設為「即時/未來航班」*/
+  /** 查詢範圍模式，預設為「即時/未來航班」*/
   const scopeMode = ref<'today' | 'realtime'>('realtime');
 
   /** 查詢結果清單 */
@@ -88,30 +88,32 @@ export function useFidsData() {
     error.value = null;
 
     try {
+      // 1. 取得去空白後的航班號、已選機場、已選航空公司
       const trimmedFlightNumber = flightNumberKeyword.value.trim();
       const selectedAirport = airport.selectedAirport.value;
       const selectedAirline = airline.selectedAirline.value;
       let result: FidsFlight[] = [];
 
-      // 記錄查詢當下的原始使用者選擇，供後續二次過濾比對使用
-      const isForeign = airport.isForeignAirport.value;
-      const originalForeignIATA = isForeign ? selectedAirport?.airportIATA : null;
+      // 2. 判斷是否為國外機場，若是則記下代碼（如 "NRT"）
+      const isForeign = airport.isForeignAirport.value;                                 //記錄查詢當下的原始使用者選擇，避免搜尋期間使用者亂按
+      const originalForeignIATA = isForeign ? selectedAirport?.airportIATA : null;      //如果是國外機場，取其IATA碼，否則null
 
       if (selectedAirport) {
+        // 3. 如果選國外機場，透過 Composable 轉為「桃園端點」與「反轉方向」
         const airportCode = airport.getEffectiveQueryAirportCode();
         const effectiveDirection = airport.getEffectiveDirection(direction.value);
 
         if (!airportCode) {
           throw new Error('機場代碼解析失敗，請重新選擇機場');
         }
-
+        // 4. 整理要傳入的參數
         const params = {
           airportCode,
           flightNumber: trimmedFlightNumber || undefined,
           direction: effectiveDirection,
           date: queryDate.value,
         };
-
+        // 5. 根據反轉後的方向，向 TDX 抓離站或進站看板
         result =
           effectiveDirection === FlightDirection.Departure
             ? await getFidsFlightDeparture(params)
@@ -119,9 +121,7 @@ export function useFidsData() {
 
         console.log('[useFidsData] API 回傳筆數（過濾前）:', result.length);
 
-        // 修正一：國外機場二次過濾
-        // UI 選「離站」= 從國外機場飛回桃園 → 對方機場應等於 departureAirportID
-        // UI 選「進站」= 從桃園飛往國外機場 → 對方機場應等於 arrivalAirportID
+        // 6. 國外機場二次過濾：從桃園回傳的大量資料中，只挑出對方機場剛好是該國外機場的班機
         if (isForeign && originalForeignIATA) {
           result = result.filter((f) => {
             const counterpartAirport =
@@ -137,11 +137,13 @@ export function useFidsData() {
             result.length,
           );
         }
-      } else {
+      } 
+      // 7. 如果沒選機場只輸入航班號，直接打依航班號查詢的 API
+      else {
         result = await getFidsFlightByNumber(trimmedFlightNumber, direction.value);
       }
 
-      // 修正二：航空公司過濾（原本完全沒有套用）
+      // 航空公司過濾
       if (selectedAirline) {
         const beforeCount = result.length;
         result = result.filter((f) => f.airlineID === selectedAirline.airlineIATA);
@@ -156,11 +158,9 @@ export function useFidsData() {
       }
 
       /**
-       * 修正：改依每筆資料「自己實際的 f.direction」判斷要看出發或抵達時間欄位，
-       * 不再統一套用 direction.value（畫面上 UI 選的方向）。
-       * 原因：國外機場離站/進站語意反轉後，f.direction 是實際呼叫 TDX API 端點所對應的方向
-       * （如「東京離站」實際上是查桃園 Arrival 端點，f.direction 為 Arrival），
-       * 若統一用 direction.value 判斷，會抓錯這批資料通常缺漏的欄位，導致全數被誤判為無參考時間
+       * 取得飛機「最新/真實的動態時間點」
+       * 用在即時/未來模式
+       * 依每筆資料「自己實際的 f.direction」判斷要看出發或抵達時間欄位
        */
       function getReferenceTimeISO(f: FidsFlight): string | null {
         const primary =
@@ -174,6 +174,10 @@ export function useFidsData() {
         return f.actualDepartureTime ?? f.scheduleDepartureTime ?? f.actualArrivalTime ?? f.scheduleArrivalTime ?? null;
       }
 
+      /**
+       * 取得航班在時刻表上的原始基準時間
+       * 用在今日全天模式
+       */
       function getScheduleTimeISO(f: FidsFlight): string {
         const primary = f.direction === FlightDirection.Departure ? f.scheduleDepartureTime : f.scheduleArrivalTime;
 
@@ -182,13 +186,13 @@ export function useFidsData() {
         return f.scheduleDepartureTime || f.scheduleArrivalTime || '';
       }
 
-      // 修正：「今日全天」改用明確的 00:00:00 ~ 23:59:59 時間範圍過濾，
-      // 取代原本僅比對「日期字串是否相同」的寫法，語意更精確且避免時區邊界誤判
+      // 8. 依據時間範圍模式（今日全天 vs 即時未來）進行時間過濾
+      // 搜尋「今日全天」
       if (scopeMode.value === 'today') {
         const now = new Date();
         const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
         const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-
+        
         result = result.filter((f) => {
           const scheduleTimeISO = getScheduleTimeISO(f);
           if (!scheduleTimeISO) return false;
@@ -198,7 +202,9 @@ export function useFidsData() {
         });
 
         console.log('[useFidsData] 今日全天範圍:', startOfToday.toISOString(), '~', endOfToday.toISOString());
-      } else {
+      } 
+      //搜尋「即時/未來」
+      else {
         const BUFFER_MINUTES = 30;
         const bufferedNow = new Date(Date.now() - BUFFER_MINUTES * 60 * 1000);
 
@@ -212,6 +218,7 @@ export function useFidsData() {
       }
 
       console.log('[useFidsData] scopeMode:', scopeMode.value, '最終顯示筆數:', result.length);
+      // 10. 將最終過濾好的乾淨清單更新給響應式變數 flightList，畫面自動重新渲染
       flightList.value = result;
     } catch (err) {
       console.error('[useFidsData] 查詢失敗:', err);
@@ -228,7 +235,6 @@ export function useFidsData() {
     clearFlightNumber();
     direction.value = FlightDirection.Departure;
     queryDate.value = getTodayDateString();
-    // 修正：重設時同步將 scopeMode 恢復為預設值「即時/未來航班」
     scopeMode.value = 'realtime';
     flightList.value = [];
     error.value = null;

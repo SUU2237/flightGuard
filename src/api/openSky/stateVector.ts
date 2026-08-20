@@ -51,13 +51,13 @@ type OpenSkyRawStateArray = [
 /**
  * 將 OpenSky 原始狀態陣列轉換為專案內部使用的 OpenSkyStateVector 物件結構
  *
- * @param raw OpenSky 單一飛機原始狀態陣列
- * @returns 轉換後的 OpenSkyStateVector 物件
+ * param raw OpenSky 單一飛機原始狀態陣列
+ * returns 轉換後的 OpenSkyStateVector 物件
  */
 function mapStateVector(raw: OpenSkyRawStateArray): OpenSkyStateVector {
   return {
     icao24: raw[0],
-    callsign: raw[1] ? raw[1].trim() : null,
+    callsign: raw[1] ? raw[1].trim() : null,    //OpenSky 的呼號常會在結尾補滿空白
     originCountry: raw[2],
     timePosition: raw[3],
     lastContact: raw[4],
@@ -76,11 +76,8 @@ function mapStateVector(raw: OpenSkyRawStateArray): OpenSkyStateVector {
 /**
  * 呼叫 OpenSky Network API 取得目前全球（或指定範圍）飛機狀態向量
  *
- * 注意：OpenSky 使用 ICAO24 位址識別飛機，callsign 對應航班呼號，
- * 與 TDX 慣用的 IATA 航班號需經 utils/codeMapper.ts 轉換比對後才能對應同一航班
- *
- * @param icao24List 選填，指定要查詢的飛機 ICAO24 位址清單，不帶則查詢全部
- * @returns 轉換後的狀態向量清單
+ * param 選填 ICAO24 位址清單，不帶則查詢全部
+ * returns 轉換後的狀態向量清單
  */
 export async function getAllStateVectors(
   icao24List?: string[],
@@ -97,7 +94,7 @@ export async function getAllStateVectors(
       },
     );
 
-    // 修正：印出 OpenSky 原始回應，確認 states 陣列筆數與資料格式是否符合預期
+    // 印出 OpenSky 原始回應，確認 states 陣列筆數與資料格式是否符合預期
     console.log('[OpenSky] 原始回應時間戳:', response.data.time, '飛機總筆數:', response.data.states?.length ?? 0);
 
     if (!response.data.states) {
@@ -111,7 +108,7 @@ export async function getAllStateVectors(
       if (err.response?.status === 429) {
         console.error('[OpenSky] 請求過於頻繁被限流 (429 Rate Limit)，請降低查詢頻率或改用登入帳號提高額度');
       } else if (err.code === 'ECONNABORTED' || !err.response) {
-        // 修正：逾時 (ECONNABORTED) 或完全無 response（純網路異常，如斷線、CORS 阻擋）皆歸類於此
+        // 逾時或完全無 response（純網路異常，如斷線、CORS 阻擋）皆歸類於此
         console.error('[useFlightTracking] OpenSky 請求逾時或網路異常:', err.message);
       } else {
         console.error('[OpenSky] API 請求失敗，狀態碼:', err.response?.status, '訊息:', err.message);
@@ -124,16 +121,8 @@ export async function getAllStateVectors(
 }
 
 /**
- * 依 callsign（航班呼號）於全量狀態向量中查找對應飛機
- * 供 composables/useFlightTracking.ts 比對特定航班是否正在空中飛行使用
- *
- * @param callsign 欲查找的呼號（通常對應 ICAO 航空公司代碼 + 航班數字），比對時忽略大小寫與前後空白
- * @returns 找到則回傳該飛機狀態向量，否則回傳 undefined
- */
-/**
- * 依 callsign（航班呼號）於全量狀態向量中查找對應飛機
- *
- * @param callsign 欲查找的呼號（ICAO 航空代碼 + 航班數字，如 "EVA271"）
+ * 依 callsign（航班呼號）查找對應飛機
+ * 也供 composables/useFlightTracking.ts 比對特定航班是否正在空中飛行使用
  */
 export async function findStateVectorByCallsign(
   callsign: string,

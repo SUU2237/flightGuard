@@ -4,7 +4,6 @@
  * 航線軌跡繪製元件
  *
  * 純粹負責在既有的 Leaflet 地圖實例上繪製一條大圓航線折線 (Polyline)，
- * 不自行建立地圖，需由父層（FlightMap.vue）傳入已初始化的 L.Map 實例。
  * 傳入的座標點陣列變動時會自動重繪；元件卸載時會自動清除圖層，避免記憶體洩漏。
  */
 import { watch, onUnmounted, shallowRef } from 'vue';
@@ -57,7 +56,7 @@ function drawRoute(): void {
   if (!props.map || props.points.length < 2) {
     return;
   }
-
+  //Leaflet 規定要二維陣列
   const latLngs: L.LatLngExpression[] = props.points.map((p) => [p.lat, p.lng]);
 
   polylineLayer.value = L.polyline(latLngs, {

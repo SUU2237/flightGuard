@@ -24,12 +24,7 @@ const FILTER_DEBOUNCE_MS = 300;
 const BLUR_CLOSE_DELAY_MS = 150;
 
 /**
- * 航空公司搜尋輸入框互動邏輯 composable
- *
- * 管理項目：
- * - Focus / Blur / 打字三種狀態切換 (SearchMode)
- * - 前端關鍵字篩選（透過 useTdxBaseDataStore.searchAirlines，限前 30 筆）
- * - 已選航空公司狀態管理
+ * 航空公司搜尋輸入框
  */
 export function useAirlineSearch() {
   const tdxStore = useTdxBaseDataStore();
@@ -58,8 +53,7 @@ export function useAirlineSearch() {
   });
 
   /**
-   * Focus 事件處理：彈出「常見推薦視窗」
-   * 僅在輸入框目前無文字時才顯示推薦清單，避免蓋掉既有篩選結果
+   * Focus：彈出「常見推薦視窗」
    */
   function onFocus(): void {
     if (blurTimer) {
@@ -70,8 +64,7 @@ export function useAirlineSearch() {
   }
 
   /**
-   * Blur 事件處理：點擊空白處後收起下拉選單
-   * 延遲執行，確保點擊推薦/篩選清單項目的 click 事件能優先觸發完成選取
+   * Blur：點擊空白處後收起下拉選單
    */
   function onBlur(): void {
     blurTimer = setTimeout(() => {
@@ -80,10 +73,7 @@ export function useAirlineSearch() {
   }
 
   /**
-   * 輸入框文字變更事件處理
-   * 偵測到打字時關閉推薦視窗，改以 Debounce 後的前端 Array.filter 進行關鍵字篩選
-   *
-   * @param value 使用者輸入的最新文字內容
+   * 輸入框
    */
   function onInput(value: string): void {
     keyword.value = value;
@@ -107,7 +97,6 @@ export function useAirlineSearch() {
 
   /**
    * 選取航空公司（可能來自推薦清單或篩選清單點擊）
-   * 選取後回填輸入框文字並收起下拉選單
    *
    * @param airline 使用者選取的航空公司物件
    */

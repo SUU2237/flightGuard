@@ -39,8 +39,6 @@ const BLUR_CLOSE_DELAY_MS = 150;
  * - Focus / Blur / 打字三種狀態切換 (SearchMode)
  * - 前端關鍵字篩選（透過 useTdxBaseDataStore.searchAirports，限前 30 筆）
  * - 國外機場離站/進站語意反轉標記與查詢代碼轉換
- *
- * @param instanceLabel 選填識別字串，供多個輸入框（如出發地/目的地）除錯用途區分
  */
 export function useAirportSearch(instanceLabel = 'default') {
   const tdxStore = useTdxBaseDataStore();
@@ -70,8 +68,6 @@ export function useAirportSearch(instanceLabel = 'default') {
 
   /**
    * 台灣國內機場 IATA 代碼白名單
-   * TDX 機場資料的國家欄位為中文（如「中華民國」），不適合用字串比對，
-   * 改用固定白名單精確判斷是否為台灣本地機場，避免誤判導致方向邏輯反轉錯誤
    */
   const DOMESTIC_AIRPORT_IATA_LIST = [
     'TPE', // 桃園
@@ -91,31 +87,19 @@ export function useAirportSearch(instanceLabel = 'default') {
 
   /**
    * 判斷指定機場是否為台灣本地機場
-   * 改為白名單精確比對，取代原本不可靠的國家欄位字串判斷
    */
   function isDomesticAirport(airport: TdxAirport): boolean {
     return DOMESTIC_AIRPORT_IATA_LIST.includes(airport.airportIATA.toUpperCase());
   }
 
-  /**
-   * 已選機場的歸屬類別（台灣本地 / 國外）
-   * 尚未選取任何機場時為 null
-   */
-  const airportOrigin = computed<AirportSearchOrigin | null>(() => {
-    if (!selectedAirport.value) return null;
-    return isDomesticAirport(selectedAirport.value)
-      ? AirportSearchOrigin.Domestic
-      : AirportSearchOrigin.Foreign;
+  /** 是否已選取國外機場（供 UI 顯示提示文字與查詢邏輯反轉判斷使用） */
+
+  const isForeignAirport = computed(() => {
+    return selectedAirport.value ? !isDomesticAirport(selectedAirport.value) : false;
   });
 
-  /** 是否已選取國外機場（供 UI 顯示提示文字與查詢邏輯反轉判斷使用） */
-  const isForeignAirport = computed(
-    () => airportOrigin.value === AirportSearchOrigin.Foreign,
-  );
-
   /**
-   * Focus 事件處理：彈出「常見推薦視窗」
-   * 僅在輸入框目前無文字時才顯示推薦清單，避免蓋掉既有篩選結果
+   * Focus 彈出「常見推薦視窗」
    */
   function onFocus(): void {
     if (blurTimer) {
@@ -126,8 +110,7 @@ export function useAirportSearch(instanceLabel = 'default') {
   }
 
   /**
-   * Blur 事件處理：點擊空白處後收起下拉選單
-   * 延遲執行，確保點擊推薦/篩選清單項目的 click 事件能優先觸發完成選取
+   * Blur 點擊空白處後收起下拉選單
    */
   function onBlur(): void {
     blurTimer = setTimeout(() => {
@@ -136,10 +119,7 @@ export function useAirportSearch(instanceLabel = 'default') {
   }
 
   /**
-   * 輸入框文字變更事件處理
-   * 偵測到打字時關閉推薦視窗，改以 Debounce 後的前端 Array.filter 進行關鍵字篩選
-   *
-   * @param value 使用者輸入的最新文字內容
+   * 偵測到輸入框正在打字時，關閉推薦視窗，做進行關鍵字篩選
    */
   function onInput(value: string): void {
     keyword.value = value;
@@ -162,10 +142,7 @@ export function useAirportSearch(instanceLabel = 'default') {
   }
 
   /**
-   * 選取機場（可能來自推薦清單或篩選清單點擊）
-   * 選取後回填輸入框文字並收起下拉選單
-   *
-   * @param airport 使用者選取的機場物件
+   * 記錄選取的機場（可能來自推薦清單或篩選清單點擊）
    */
   function selectAirport(airport: TdxAirport): void {
     selectedAirport.value = airport;
@@ -187,10 +164,7 @@ export function useAirportSearch(instanceLabel = 'default') {
   }
 
   /**
-   * 取得實際應送往 TDX 查詢的機場代碼
-   * 依規範：TDX 僅支援台灣相關航班，選擇國外機場時一律改查與桃園機場(TPE)的往返航班
-   *
-   * @returns 查詢用機場 IATA 代碼，尚未選取機場時回傳 null
+   * 取得實際應送往 TDX 查詢的機場代碼（桃園機場 or 其餘台灣機場）
    */
   function getEffectiveQueryAirportCode(): string | null {
     if (!selectedAirport.value) return null;
@@ -199,13 +173,8 @@ export function useAirportSearch(instanceLabel = 'default') {
 
   /**
    * 取得實際應送往 TDX 查詢的航班方向
-   *
-   * 依規範：選擇國外機場的「離站航班」代表「從該國外機場離站抵達桃園」，
-   * 邏輯與台灣機場相反，故實際查詢桃園機場時需反轉方向
-   * （UI 上選 Departure，實際查詢應打 Arrival at TPE；反之亦然）
-   *
-   * @param uiDirection 使用者於 UI 上選擇的方向
-   * @returns 實際應送往 TDX API 查詢的方向
+   * - 國內機場：照常
+   * - 國外機場：離站/進站語意反轉
    */
   function getEffectiveDirection(uiDirection: FlightDirection): FlightDirection {
     if (!isForeignAirport.value) return uiDirection;
@@ -216,11 +185,7 @@ export function useAirportSearch(instanceLabel = 'default') {
   }
 
   /**
-   * 取得 UI 顯示用的方向提示文字
-   * 國外機場時需額外說明「與桃園機場往返」及方向反轉語意，避免使用者混淆
-   *
-   * @param uiDirection 使用者於 UI 上選擇的方向
-   * @returns 對應的提示文字
+   * 選擇國外機場時需額外提示「與桃園機場往返」及方向反轉語意，避免使用者混淆
    */
   function getDirectionUiHint(uiDirection: FlightDirection): string {
     if (!isForeignAirport.value) {
@@ -240,7 +205,6 @@ export function useAirportSearch(instanceLabel = 'default') {
     selectedAirport,
     recommendedAirports,
     // getters
-    airportOrigin,
     isForeignAirport,
     // actions
     onFocus,
@@ -252,7 +216,4 @@ export function useAirportSearch(instanceLabel = 'default') {
     getEffectiveDirection,
     getDirectionUiHint,
   };
-
-  // eslint-disable-next-line no-unused-labels
-  void instanceLabel;
 }

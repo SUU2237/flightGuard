@@ -14,11 +14,6 @@ import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 
 
 console.log('[ENV CHECK]', import.meta.env.VITE_TDX_CLIENT_ID);
-/**
- * 修正 Leaflet 預設 Icon 路徑
- * Leaflet 原生透過相對路徑（webpack 慣例）取得圖示資源，於 Vite 環境下會解析失敗，
- * 需手動 import 圖片並覆寫 Icon.Default 的 options，確保預設 Marker 正常顯示
- */
 delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: markerIcon2x,
@@ -27,8 +22,8 @@ L.Icon.Default.mergeOptions({
 });
 
 const app = createApp(App);
-
+//Pinia 狀態管理庫：供後續快取機場與航空公司資料
 app.use(createPinia());
 app.use(router);
-
+//將整個 Vue 實例掛載到 index.html 裡面 id 為 app 的 DOM 節點上
 app.mount('#app');

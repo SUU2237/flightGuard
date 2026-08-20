@@ -2,9 +2,8 @@
 
 /**
  * OpenSky State Vector 原始資料格式
- * 對應 OpenSky Network REST API (/states/all) 回傳的單一飛機陣列格式
- * 注意：原始 API 回傳為「陣列」而非物件，此處依官方文件索引順序定義各欄位語意，
- * 實際轉換時需於 api/openSky/stateVector.ts 中將陣列 map 為此結構
+ * 將 OpenSky API 回傳的原始 17 欄位陣列翻譯為具備明確英文名稱的狀態物件
+ * 需於 api/openSky/stateVector.ts 中將陣列 map 為此結構
  */
 export interface OpenSkyStateVector {
   /** 飛機 ICAO24 位址（唯一識別碼，24-bit hex），如 "8990ed" */
@@ -39,7 +38,7 @@ export interface OpenSkyStateVector {
 
 /**
  * 飛機顯示狀態列舉
- * 依規範：僅「真實飛在空中」的班機顯示即時位置與飛行數據，其餘一律以 "--" 顯示
+ * 僅「真實飛在空中」的班機顯示即時位置與飛行數據，其餘一律以 "--" 顯示
  */
 export enum FlightAirborneStatus {
   /** 目前確實在空中飛行中，顯示即時位置與飛行數據 */

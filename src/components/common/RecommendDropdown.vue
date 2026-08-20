@@ -3,8 +3,7 @@
 /**
  * 常見推薦清單下拉選單元件
  *
- * 於使用者 Focus 輸入框但尚未打字時顯示，展示如「常見機場」「常見航空公司」等推薦項目。
- * 使用泛型 T 讓元件可同時支援 TdxAirport、TdxAirline 等不同項目型別。
+ * 於使用者 Focus 輸入框但尚未打字時顯示，展示如「常見機場」「常見航空公司」等推薦項目
  */
 const props = withDefaults(
   defineProps<{

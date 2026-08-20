@@ -5,7 +5,7 @@
  *
  * 於使用者打字時顯示，展示前端 Array.filter 篩選後的結果清單（限前 30 筆）。
  * 支援關鍵字高亮顯示，並於查無結果時顯示 Empty State 提示。
- * 使用泛型 T 讓元件可同時支援 TdxAirport、TdxAirline 等不同項目型別。
+ * 使用泛型 T 讓元件不限制只能裝「機場」；它可以裝機場、航空公司、甚至是未來的保險清單
  */
 const props = withDefaults(
   defineProps<{

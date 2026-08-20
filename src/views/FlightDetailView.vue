@@ -33,29 +33,19 @@ const error = ref<string | null>(null);
 const flight = ref<FidsFlight | null>(null); 
 /** FlightMap 元件實例參照，透過其 defineExpose 呼叫內部 Leaflet 地圖的 invalidateSize() */
 const flightMapRef = useTemplateRef<InstanceType<typeof FlightMap>>('flightMapRef');
-/**
- * 新增：判斷是否有有效的出發／抵達時間資料，供時間對照表區塊動態顯示使用
- * 僅檢查表定時間（scheduleDepartureTime / scheduleArrivalTime），
- * 因為 TDX 資料中「表定時間」通常比「實際時間」更穩定有值，以此作為該側是否顯示的依據
- */
+/** 判斷是否有有效的出發時間資料，供時間對照表區塊動態顯示使用 */
 const hasDepartureTime = computed(() => Boolean(flight.value?.scheduleDepartureTime));
+/** 判斷是否有有效的抵達時間資料，供時間對照表區塊動態顯示使用 */
 const hasArrivalTime = computed(() => Boolean(flight.value?.scheduleArrivalTime));
 
 /**
  * 拆解路由參數 id（格式："航班號-YYYYMMDD"）為航班號與日期字串
- *
- * @param id 路由參數，如 "BR271-20260804"
- * @returns 拆解後的航班號與日期（YYYY-MM-DD），格式不符時回傳 null
- */
-/**
- * 修正：拆解出「航空公司代碼」與「航班號數字」分開比對，不再只比對合併字串，
- * 確保比對時能同時核對 flight.airlineID 與 flight.flightNumber 兩個獨立欄位，
- * 徹底避免不同公司相同班次號互相渲染錯誤的問題
+ *「航空公司代碼」與「航班號數字」分開比對，避免不同公司相同班次號互相渲染錯誤的問題
  */
 function parseRouteId(
   id: string,
 ): { airlineIATA: string; flightDigits: string; dateStr: string } | null {
-  // 格式改用 [A-Z0-9]{2} 允許英數混合，不再限制為純英文字母
+  // 格式改用 [A-Z0-9]{2} 允許英數混合
   const match = id.match(/^([A-Z0-9]{2})(\d+)-(\d{4})(\d{2})(\d{2})$/i);
   if (!match) return null;
 
@@ -103,17 +93,15 @@ async function loadFlightDetail(): Promise<void> {
   error.value = null;
 
   try {
-    // 修正：TDX 的 FlightNumber 欄位僅存純數字（如 "106"），不含航空代碼前綴，
-    // 若傳入完整字串（如 "CI106"）查詢會直接比對失敗、永遠查無資料，
-    // 故改為傳入純數字 parsed.flightDigits 呼叫 API，航空公司代碼留到比對階段再核對
+    // 因為 TDX 的 FlightNumber 欄位僅存純數字（如 "106"），故傳入純數字 parsed.flightDigits 呼叫 API，航空公司代碼留到比對階段再核對
     const [departures, arrivals] = await Promise.all([
       getFidsFlightByNumber(parsed.flightDigits, FlightDirection.Departure),
       getFidsFlightByNumber(parsed.flightDigits, FlightDirection.Arrival),
     ]);
-
+    
     const candidates = [...departures, ...arrivals];
 
-    // 修正：三層精準比對 —— 航空公司代碼 + 航班號數字部分 + 表定出發日期，
+    // 三層精準比對 —— 航空公司代碼 + 航班號數字部分 + 表定出發日期，
     // 徹底排除「不同公司但班次數字剛好相同」互相渲染錯誤的可能性
     const matched = candidates.find((f) => {
       const numericPart = f.flightNumber.replace(/^[A-Z]+/i, '');
@@ -204,8 +192,7 @@ const tripStatusLabel = computed(() => {
 
 /**
  * 返回搜尋列表頁面
- * 使用 router.back() 沿用瀏覽器歷史紀錄返回，若 App.vue 對 <router-view> 套用 <keep-alive>，
- * SearchView 先前的搜尋條件與結果將可原樣保留，不會被重新初始化
+ * 使用 router.back() 沿用瀏覽器歷史紀錄返回， <keep-alive> 讓先前的搜尋條件與結果將可原樣保留，不會被重新初始化
  */
 function goBackToSearch(): void {
   router.back();
@@ -287,9 +274,6 @@ function goBackToSearch(): void {
         :class="hasDepartureTime && hasArrivalTime ? 'sm:grid-cols-2' : 'sm:grid-cols-1'"
       > 
         <!-- 表定/實際時間對照表 -->
-        <!-- 修正：改用 v-if 分別判斷出發/抵達兩組時間是否有值，
-          只有一組有資料時該側完全不渲染，避免出現寫死 4 格導致的無效 "--" 空白卡片，
-          grid 欄數依實際顯示的卡片數量動態調整，維持版面美觀 -->
       <div
         class="mt-6 grid grid-cols-1 gap-4"
         :class="hasDepartureTime && hasArrivalTime ? 'sm:grid-cols-2' : 'sm:grid-cols-1'"
@@ -329,14 +313,12 @@ function goBackToSearch(): void {
       </div>
       </div>
 
-      <!-- 不便險理賠資格分析卡 -->
-      <!-- 修正：改為左右並排的 grid，左側新增「即時飛行數據卡」，右側維持原本的不便險理賠資格分析卡 -->
+    <!-- 左：飛行即時數據卡 + 右：不便險理賠資格分析卡 -->
     <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-      <!-- 即時飛行數據卡（新增） -->
+      <!-- 即時飛行數據卡 -->
       <div class="rounded-2xl bg-white p-6 shadow-md">
         <h2 class="mb-3 text-base font-semibold text-gray-700">即時飛行數據</h2>
 
-        <!-- 修正：移除「已降落 / 尚未起飛 / 飛航中」狀態文字，僅保留二擇一提示訊息 -->
         <div v-if="isOutOfRadarCoverage" class="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-600">
           目前航班已飛離陸地接收站範圍，OpenSky 為地面接收站網路，跨洋或偏遠空域可能暫時無法回報即時位置
         </div>
@@ -344,7 +326,7 @@ function goBackToSearch(): void {
           僅飛航中的航班顯示即時位置與飛行數據
         </div>
 
-        <!-- 僅飛航中顯示即時數據，其餘一律 "--"（符合規範：非 InAir 強制不顯示真實數據） -->
+        <!-- 僅飛航中顯示即時數據，其餘一律 "--"-->
         <div class="grid grid-cols-2 gap-3 text-sm">
           <div class="rounded-lg bg-gray-50 p-3">
             <p class="text-xs text-gray-400">緯度</p>
@@ -435,7 +417,6 @@ function goBackToSearch(): void {
       </div>
     </div>
       <!-- 即時飛行軌跡地圖 -->
-        <!-- 找到地圖區塊，確保與此完全一致：v-if 僅依賴 flight，不依賴 isInAir -->
         <div v-if="flight" class="h-125 w-full overflow-hidden rounded-2xl shadow-md">
           <h2 class="sr-only">航線與即時位置</h2>
           <FlightMap ref="flightMapRef" :flight="flight" />

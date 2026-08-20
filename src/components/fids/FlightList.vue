@@ -3,16 +3,14 @@
 /**
  * 航班列表容器元件
  *
- * 負責迴圈渲染 FlightCard，並依查詢狀態呈現對應 UI：
- * - Loading：顯示骨架屏動畫
- * - Error：顯示錯誤訊息提示
- * - Empty：查無結果時顯示預設空狀態 UI
- * 使用者點擊清單中的 FlightCard 時，向父層 emit "select" 事件並附帶被點擊的航班資料
+ * 負責迴圈渲染 FlightCard
+ * 使用者點擊卡片時，向父層 emit "select" 事件並附帶被點擊的航班資料
  */
 import type { FidsFlight } from '@/types';
 import FlightCard from './FlightCard.vue';
 
 withDefaults(
+  //接受父層傳來的 props
   defineProps<{
     /** 航班清單資料 */
     flights: FidsFlight[];
@@ -86,7 +84,7 @@ function handleSelect(flight: FidsFlight): void {
       <p class="text-sm text-gray-400">請調整搜尋條件後重新查詢</p>
     </div>
 
-    <!-- 航班卡片清單 -->
+    <!-- 正常情況下：航班卡片清單 -->
     <div v-else class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
       <FlightCard
         v-for="flight in flights"

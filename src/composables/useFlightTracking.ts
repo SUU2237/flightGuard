@@ -4,6 +4,7 @@ import { ref, computed, type Ref, unref, watch, onMounted } from 'vue';
 import { findStateVectorByCallsign } from '@/api/openSky/stateVector';
 import { generateGreatCircleArc } from '@/utils/geoUtils';
 import { useTdxBaseDataStore } from '@/stores/tdxBaseData';
+import { getAirportCoordByIATA } from '@/utils/airportCoordLookup';
 import {
   FlightAirborneStatus,
   TripStatus,
@@ -59,8 +60,6 @@ const FALLBACK_AIRLINE_ICAO_MAP: Record<string, string> = {
 
 /**
  * 單一航班 OpenSky 即時追蹤邏輯 composable
- *
- * @param flight 單一航班動態資料 (可傳入 Ref 或純物件)
  */
 export function useFlightTracking(flight: Ref<FidsFlight | null> | FidsFlight | null) {
   const tdxStore = useTdxBaseDataStore();
@@ -99,14 +98,7 @@ export function useFlightTracking(flight: Ref<FidsFlight | null> | FidsFlight | 
    * 依機場 IATA 代碼取得經緯度座標
    */
   function getAirportCoordinate(iataCode: string): { lat: number; lng: number } | null {
-    const airport = tdxStore.getAirportByIATA(iataCode) as
-      | (ReturnType<typeof tdxStore.getAirportByIATA> & { latitude?: number; longitude?: number })
-      | undefined;
-
-    if (!airport || typeof airport.latitude !== 'number' || typeof airport.longitude !== 'number') {
-      return null;
-    }
-    return { lat: airport.latitude, lng: airport.longitude };
+    return getAirportCoordByIATA(iataCode);
   }
 
   /**
@@ -154,7 +146,7 @@ export function useFlightTracking(flight: Ref<FidsFlight | null> | FidsFlight | 
     try {
       const callsign = resolveCallsign(currentFlight.airlineID, currentFlight.flightNumber);
       console.log('[useFlightTracking] Callsign 轉換:', currentFlight.flightNumber, '->', callsign);
-
+      //呼號查詢成功且飛機未著地時，判定為 InAir
       const stateVector = callsign ? await findStateVectorByCallsign(callsign) : undefined;
       const isAirborne = Boolean(stateVector && !stateVector.onGround);
       const airborneStatus = resolveAirborneStatus(currentFlight, isAirborne);
@@ -167,14 +159,15 @@ export function useFlightTracking(flight: Ref<FidsFlight | null> | FidsFlight | 
           longitude: stateVector.longitude,
           latitude: stateVector.latitude,
           heading: stateVector.trueTrack,
-          speedKmh: stateVector.velocity !== null ? Math.round(stateVector.velocity * 3.6) : null,
+          speedKmh: stateVector.velocity !== null ? Math.round(stateVector.velocity * 3.6) : null,    //OpenSky 回傳的速度是 m/s，換算成航空常用的 $km/h$
           altitude: stateVector.geoAltitude ?? stateVector.baroAltitude,
           updatedAt: Date.now(),
         };
 
         const originCoord = getAirportCoordinate(currentFlight.departureAirportID);
         const destCoord = getAirportCoordinate(currentFlight.arrivalAirportID);
-
+        
+        //生成大圓弧線點陣列
         routeArc.value =
           originCoord && destCoord
             ? generateGreatCircleArc(originCoord.lat, originCoord.lng, destCoord.lat, destCoord.lng)

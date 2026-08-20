@@ -23,12 +23,12 @@ export interface DelayCalculationResult {
   isCalculable: boolean;
   /** 延誤分鐘數，無法計算時為 null（負值代表提前，不視為延誤） */
   delayMinutes: number | null;
-  /** 是否達到 4 小時（240 分鐘）以上之理賠門檻 */
+  /** 時間上是否達到理賠門檻 */
   isOverThreshold: boolean;
 }
 
 /**
- * 不便險理賠資格判定結果
+ * 完整理賠報告
  * 由 composables/useInsuranceCheck.ts 呼叫 utils/insuranceRule.ts 計算後產生，
  * 供 components/fids/InsuranceBadge.vue 顯示高亮提示使用
  */

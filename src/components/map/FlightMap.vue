@@ -6,17 +6,13 @@
  * 使用 Leaflet 載入 OpenStreetMap 底圖，整合：
  * - useMapState：管理地圖中心座標 / 縮放層級 / 目前聚焦航班，並於狀態變動時 flyTo
  * - useFlightTracking：依目前聚焦航班查詢 OpenSky 即時位置
- *
- * 【規範重點】僅「真實飛在空中」的班機 (isInAir) 才顯示飛機 Marker 與航線，
- * 非 InAir 狀態時地圖僅顯示預設或聚焦視角，不繪製任何飛行中圖層
  */
 import { ref, computed, onMounted, onUnmounted, watch, shallowRef } from 'vue';
 import * as L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useMapState } from '@/composables/useMapState';
 import { useFlightTracking } from '@/composables/useFlightTracking';
-import { useTdxBaseDataStore } from '@/stores/tdxBaseData';
-import { generateGreatCircleArc } from '@/utils/geoUtils';
+import { generateGreatCircleArc , getUnwrappedDestLng } from '@/utils/geoUtils';
 import type { FidsFlight } from '@/types';
 import RoutePolyline from './RoutePolyline.vue';
 import { getAirportCoordByIATA } from '@/utils/airportCoordLookup';
@@ -37,44 +33,40 @@ const aircraftMarker = shallowRef<L.Marker | null>(null);
 const originMarker = shallowRef<L.Marker | null>(null);
 const destMarker = shallowRef<L.Marker | null>(null);
 
-const tdxStore = useTdxBaseDataStore();
-
 /** 地圖視角狀態管理 */
-const { center, zoom, resetMapView, setMapFocus, setSelectedFlight } = useMapState();
+const { center, zoom, resetMapView, setMapFocus } = useMapState();
 
 /** OpenSky 即時追蹤狀態，傳入 props.flight 的響應式參照 */
 const flightRef = computed(() => props.flight);
 const { flightState, routeArc, isLoading, error, isInAir, trackFlight } =
   useFlightTracking(flightRef);
 
-/**
- * 修正：TDX 機場 API 實際回傳的經緯度巢狀於 AirportPosition.PositionLat / PositionLon，
- * 此處以型別斷言方式直接讀取該原始巢狀結構，取代原本依賴 TdxAirport.latitude/longitude 攤平欄位的寫法
- */
-interface AirportWithRawPosition {
-  AirportPosition?: {
-    PositionLat?: number;
-    PositionLon?: number;
-  };
-}
-
-// 原本的 interface AirportWithRawPosition 與兩個 computed 全部移除，改為以下精簡版本
-
-/** 出發機場座標：改用開源全球機場資料庫查找，不再依賴 TDX AirportPosition */
+/** 出發機場座標 */
 const originCoord = computed(() => {
   if (!props.flight) return null;
   return getAirportCoordByIATA(props.flight.departureAirportID);
 });
 
-/** 抵達機場座標：改用開源全球機場資料庫查找，不再依賴 TDX AirportPosition */
+/** 抵達機場座標 */
 const destCoord = computed(() => {
   if (!props.flight) return null;
   return getAirportCoordByIATA(props.flight.arrivalAirportID);
 });
 
+
+/**
+ * 與大圓航線對齊的「unwrap 後抵達機場座標」
+ */
+const unwrappedDestCoord = computed(() => {
+  if (!originCoord.value || !destCoord.value) return null;
+  return {
+    lat: destCoord.value.lat,
+    lng: getUnwrappedDestLng(originCoord.value.lng, destCoord.value.lng),
+  };
+});
+
 /**
  * 靜態大圓航線（不受飛行狀態影響，只要起訖機場座標皆有效即繪製）
- * 飛行中時改顯示 useFlightTracking 回傳的動態 routeArc（顏色不同以區隔）
  */
 const staticRouteArc = computed(() => {
   if (!originCoord.value || !destCoord.value) return [];
@@ -89,10 +81,10 @@ const staticRouteArc = computed(() => {
 /** 實際要渲染的航線：飛行中優先用即時追蹤的 routeArc，否則用靜態航線 */
 const displayRouteArc = computed(() => (isInAir.value && routeArc.value.length > 0 ? routeArc.value : staticRouteArc.value));
 
-/** 航線顏色：飛行中為藍色，靜態顯示為灰色 */
+/** 航線顏色 */
 const routeColor = '#2563eb';
 
-/** 建立機場 Marker 圖示（圓點樣式，區隔出發/抵達） */
+/** 建立起降機場標示 */
 function createAirportIcon(kind: 'origin' | 'dest'): L.DivIcon {
   const color = kind === 'origin' ? '#16a34a' : '#dc2626';
   return L.divIcon({
@@ -104,10 +96,7 @@ function createAirportIcon(kind: 'origin' | 'dest'): L.DivIcon {
 }
 
 /**
- * 建立自訂飛機圖示（以 SVG Data URI 呈現，避免額外圖片資源依賴）
- * 依規範不使用任何品牌/航空公司 Logo，僅使用通用飛機圖示
- *
- * @param heading 飛機航向角度，用於旋轉圖示朝向
+ * 建立飛機圖示
  */
 function createAircraftIcon(heading: number | null): L.DivIcon {
   const rotation = heading ?? 0;
@@ -119,10 +108,8 @@ function createAircraftIcon(heading: number | null): L.DivIcon {
   });
 }
 
-/** 更新出發／抵達機場 Marker（不受飛行狀態影響） */
+/** 更新出發／抵達機場 Marker 縮放視角*/
 function updateAirportMarkers(): void {
-  // 【診斷】確認地圖實例是否已初始化完成；若此處持續印出 false，
-  // 代表座標資料在地圖尚未 mount 前就已算出，需檢查呼叫時機
   console.log('[FlightMap] updateAirportMarkers 執行，mapInstance 是否就緒:', Boolean(mapInstance.value));
   if (!mapInstance.value) return;
 
@@ -143,19 +130,21 @@ function updateAirportMarkers(): void {
       .bindPopup(`出發：${props.flight?.departureAirportID ?? ''}`);
   }
 
-  if (destCoord.value) {
-    destMarker.value = L.marker([destCoord.value.lat, destCoord.value.lng], {
+  if (unwrappedDestCoord.value) {
+    destMarker.value = L.marker([unwrappedDestCoord.value.lat, unwrappedDestCoord.value.lng], {
       icon: createAirportIcon('dest'),
     })
       .addTo(mapInstance.value)
       .bindPopup(`抵達：${props.flight?.arrivalAirportID ?? ''}`);
   }
 
-  // 兩機場座標皆有效時，自動將地圖視角調整到能同時容納兩點的範圍
-  if (originCoord.value && destCoord.value) {
+  if (originCoord.value && unwrappedDestCoord.value) {
+    const lats = [originCoord.value.lat, unwrappedDestCoord.value.lat];
+    const lngs = [originCoord.value.lng, unwrappedDestCoord.value.lng];
+
     const bounds = L.latLngBounds([
-      [originCoord.value.lat, originCoord.value.lng],
-      [destCoord.value.lat, destCoord.value.lng],
+      [Math.min(...lats), Math.min(...lngs)],
+      [Math.max(...lats), Math.max(...lngs)],
     ]);
     mapInstance.value.fitBounds(bounds, { padding: [40, 40] });
   }
@@ -220,9 +209,6 @@ onMounted(() => {
   }).addTo(mapInstance.value);
 
   updateAirportMarkers();
-  // 修正：地圖初始化當下，父層容器（尤其是 v-if 剛渲染出來的 grid/flex 版面）
-  // 有時尚未完成最終的高度計算，Leaflet 會以錯誤的 0 高度渲染磚圖，
-  // 透過 setTimeout 延遲一個 tick 後強制呼叫 invalidateSize() 重新量測容器，修正塌陷
   setTimeout(() => {
     mapInstance.value?.invalidateSize();
   }, 0);
@@ -241,12 +227,7 @@ watch([center, zoom], ([newCenter, newZoom]) => {
   mapInstance.value?.flyTo([newCenter.lat, newCenter.lng], newZoom, { animate: true, duration: 1.2 });
 });
 
-// 修正：新增 watch 監聽 originCoord / destCoord
-// 原因：tdxStore 的機場全量快取（含經緯度）是非同步 initialize() 載入，
-// 若 FlightMap 掛載當下 tdxStore 尚未完成初始化，originCoord/destCoord 會先算出 null，
-// 之後快取補齊時 computed 會重新運算出正確座標，但 updateAirportMarkers() 不會自動被重新呼叫，
-// 因此需另外監聽這兩個 computed，座標補齊時強制重繪地標與航線
-// 修正：console.debug 改為 console.log，避免 Chrome DevTools 預設 log level 過濾掉 debug 訊息
+// 監聽 originCoord / destCoord：座標補齊時強制重繪地標與航線
 watch(
   [originCoord, destCoord],
   ([origin, dest]) => {
@@ -270,10 +251,7 @@ watch(flightState, () => {
 });
 
 /**
- * 新增：強制刷新 Leaflet 地圖容器尺寸
- * 當地圖容器所在的父層 DOM（如 v-if 剛顯示、Flex/Grid 版面調整）尺寸發生變化，
- * Leaflet 內部快取的容器尺寸可能未同步更新，導致地圖顯示塌陷或位移，
- * 呼叫 invalidateSize() 讓 Leaflet 重新量測實際容器尺寸並修正顯示
+ * 強制刷新 Leaflet 地圖容器尺寸
  */
 function invalidateMapSize(): void {
   mapInstance.value?.invalidateSize();

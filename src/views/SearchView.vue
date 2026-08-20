@@ -5,7 +5,7 @@
  *
  * 版面配置：
  * - 上方：SearchHeader（機場/航空公司/航班號搜尋、進出站切換、查詢範圍切換）
- * - 下方：左側 FlightList（搜尋結果清單）、右側 FlightMap（點擊卡片時聚焦顯示即時位置）
+ * - 下方：FlightList（搜尋結果清單）
  *
  * onMounted 時呼叫 useTdxBaseDataStore.initialize() 預先載入機場/航空公司全量快取，
  * 確保後續搜尋互動（Array.filter 前端篩選）有資料可用
@@ -29,8 +29,7 @@ const fids = useFidsData();
 const isInsuranceDrawerOpen = ref(false);
 
 /**
- * 依查詢方向取得該筆航班應比對的表定/實際時間，判斷理賠資格
- * 沿用與 useInsuranceCheck.ts 相同的邏輯，此處直接對整個清單批次計算，
+ * 依據班機是進站還是出站，挑選出對應的表定/實際時間，再丟給 checkInsuranceEligibility 函式計算
  * 供 FAB 數字 Badge 與抽屜內容共用同一份計算結果，避免重複邏輯
  */
 function getFlightEligibility(flight: FidsFlight) {
@@ -46,15 +45,15 @@ function getFlightEligibility(flight: FidsFlight) {
   return checkInsuranceEligibility(flight.tripStatus, scheduleTime, actualTime);
 }
 
-/** 目前搜尋結果中，符合不便險理賠資格的航班清單 */
+/** 響應式計算屬性，只要搜尋清單更新，自動過濾出符合理賠條件的班機 */
 const eligibleFlights = computed(() =>
   fids.flightList.value.filter((f) => getFlightEligibility(f).isEligible),
 );
 
-/** 符合理賠的航班數量，顯示於 FAB 數字 Badge */
+/** 符合理賠的航班數量，用於顯示在 FAB 上 */
 const eligibleCount = computed(() => eligibleFlights.value.length);
 
-/** 切換抽屜開關 */
+/** 切換右側抽屜開關 */
 function toggleInsuranceDrawer(): void {
   isInsuranceDrawerOpen.value = !isInsuranceDrawerOpen.value;
 }
@@ -76,20 +75,10 @@ onMounted(() => {
 /**
  * 產生航班詳細頁路由用的簡潔識別字串
  * 格式：「航班號-YYYYMMDD」（例如 "BR271-20260804"）
- * 依表定出發時間（本地時區）取得日期，避免使用 ISO 字串直接編碼造成網址出現
- * %3A（冒號）、%2B（加號時區）等特殊符號轉義亂碼
+ * 依序 fallback 嘗試多個時間欄位，並在轉換前明確驗證日期有效性，確保絕不會產出含 NaN 的路由 id
  *
  * @param flight 航班動態資料
  * @returns 簡潔可讀的路由 id 字串
- */
-/**
- * 修正：scheduleDepartureTime 對「進站/抵達航班」而言可能為 null/undefined
- * （如蘇萬那普飛桃園的 CI838，其資料以抵達端為主，出發時間欄位可能缺漏），
- * 直接 new Date(undefined) 會產生 Invalid Date，getFullYear() 等方法回傳 NaN，
- * 進而產生形如 "CI838-NaNNaNNaN" 的無效網址。
- *
- * 修正方式：依序 fallback 嘗試多個時間欄位，並在轉換前明確驗證日期有效性，
- * 確保絕不會產出含 NaN 的路由 id。
  */
 function buildFlightRouteId(flight: FidsFlight): string {
   // 依序 fallback：表定出發 → 表定抵達 → 實際出發 → 實際抵達
@@ -163,7 +152,8 @@ function handleFlightSelect(flight: FidsFlight): void {
         @select="handleFlightSelect"
       />
     </div>
-    <!-- 新增：右下角懸浮按鈕 (FAB) -->
+
+<!-- 理賠一覽 FAB -->
 <button
   type="button"
   class="fixed bottom-6 right-6 z-1350 flex items-center gap-2 rounded-full bg-amber-500 px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-amber-600 cursor-pointer"
@@ -178,7 +168,7 @@ function handleFlightSelect(flight: FidsFlight): void {
   </span>
 </button>
 
-<!-- 新增：遮罩層（點擊遮罩可關閉抽屜） -->
+<!-- 遮罩層（點擊遮罩可關閉抽屜） -->
 <Transition name="fade">
   <div
     v-if="isInsuranceDrawerOpen"
@@ -187,7 +177,7 @@ function handleFlightSelect(flight: FidsFlight): void {
   />
 </Transition>
 
-<!-- 新增：右側滑出抽屜 -->
+<!-- 右側抽屜 -->
 <Transition name="slide">
   <div
     v-if="isInsuranceDrawerOpen"

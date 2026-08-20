@@ -6,7 +6,7 @@
  * 接收 InsuranceEligibility 判定結果物件，依理賠原因分類呈現不同樣式：
  * - 符合取消理賠：醒目紅底 Badge
  * - 符合延誤理賠：醒目黃底 Badge（附帶延誤時間說明）
- * - 未達門檻/不符合：簡約灰底 Badge
+ * - 未達門檻/不符合：灰底 Badge
  */
 import { computed } from 'vue';
 import { InsuranceReasonType, type InsuranceEligibility } from '@/types';
@@ -38,11 +38,11 @@ const badgeTitle = computed(() => {
 </script>
 
 <template>
-  <div class="inline-flex flex-col items-start gap-1">
+  <div class="mt-1 flex items-center justify-between gap-2  border-gray-100 pt-3">
     <span class="rounded-md px-2.5 py-1 text-xs font-semibold" :class="badgeClass">
       {{ badgeTitle }}
     </span>
-    <p v-if="eligibility?.displayMessage" class="text-xs text-gray-400">
+    <p v-if="eligibility?.displayMessage" class="min-w-0 flex-1 truncate text-right text-xs text-gray-400">
       {{ eligibility.displayMessage }}
     </p>
   </div>

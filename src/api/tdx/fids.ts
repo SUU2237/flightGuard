@@ -84,7 +84,6 @@ function mapFidsFlight(raw: FidsFlightRaw, direction: FlightDirection): FidsFlig
     scheduleArrivalTime: raw.ScheduleArrivalTime ?? '',
     actualDepartureTime: raw.ActualDepartureTime,
     actualArrivalTime: raw.ActualArrivalTime,
-    // 修正：不再直接沿用 raw.TripStatus，改呼叫 resolveTripStatus() 綜合判定
     tripStatus: resolveTripStatus(raw, scheduleTime, actualTime),
     direction,
     gate: raw.Gate ?? null,
@@ -95,13 +94,7 @@ function mapFidsFlight(raw: FidsFlightRaw, direction: FlightDirection): FidsFlig
 /**
  * 依 FidsQueryParams 組合 TDX OData $filter 查詢字串
  *
- * 【規範重點】
- * - TDX 不支援 contains 函數做模糊搜尋，故此處僅組裝「精確比對」條件
- *   （機場代碼、航班號、日期），關鍵字模糊搜尋一律於前端 Store 處理，不透過此函式
- * - 機場、航班號至少需擇一才會組出有效 filter，呼叫端（composable）應先行驗證
- *
- * @param params FIDS 查詢參數
- * @returns 組合完成的 OData $filter 字串，若無任何條件則回傳 undefined
+ * 如果有指定航班號，組裝標準 OData 查詢語法 FlightNumber eq '106' 傳給 TDX 伺服器進行過濾
  */
 function buildODataFilter(params: FidsQueryParams): string | undefined {
   if (!params.flightNumber) return undefined;
@@ -110,9 +103,9 @@ function buildODataFilter(params: FidsQueryParams): string | undefined {
 
 /**
  * 查詢指定機場的離站航班動態 (FIDSFlightDeparture)
- *
- * @param params FIDS 查詢參數，須包含 airportCode（機場代碼）
- * @returns 離站航班動態清單
+ * 
+ * param params FIDS 查詢參數，須包含 airportCode（機場代碼）
+ * returns 離站航班動態清單
  */
 export async function getFidsFlightDeparture(
   params: FidsQueryParams,
@@ -120,7 +113,6 @@ export async function getFidsFlightDeparture(
   if (!params.airportCode) {
     throw new Error('查詢離站航班動態時，airportCode 為必填參數');
   }
-
   const filter = buildODataFilter(params);
   console.debug('[FIDS] 查詢離站', params.airportCode, 'filter=', filter);
 
@@ -139,9 +131,6 @@ export async function getFidsFlightDeparture(
 
 /**
  * 查詢指定機場的進站航班動態 (FIDSFlightArrival)
- *
- * @param params FIDS 查詢參數，須包含 airportCode（機場代碼）
- * @returns 進站航班動態清單
  */
 export async function getFidsFlightArrival(
   params: FidsQueryParams,
@@ -170,9 +159,9 @@ export async function getFidsFlightArrival(
  * 依航班號直接查詢航班動態（不限機場），適用於僅輸入「航班號」的搜尋情境
  * 同時查詢進站與離站端點並合併結果，交由呼叫端（composable）依需求篩選
  *
- * @param flightNumber 航班號，如 "BR301"
- * @param direction 查詢方向，決定呼叫進站或離站端點
- * @returns 對應方向的航班動態清單
+ * param flightNumber 航班號，如 "BR301"
+ * param direction 查詢方向，決定呼叫進站或離站端點
+ * returns 對應方向的航班動態清單
  */
 export async function getFidsFlightByNumber(
   flightNumber: string,

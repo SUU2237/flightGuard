@@ -8,13 +8,9 @@ import type { TdxAirport, TdxAirline } from '@/types';
 
 /**
  * TDX 基礎資料 Store（機場 / 航空公司）
- *
- * 【重要架構說明】
- * 由於 TDX 後端不支援 OData contains 函數，無法於 API 層直接做關鍵字模糊查詢，
- * 因此本 Store 於初始化時（initialize）一次性呼叫 api/tdx/airport.ts 與
- * api/tdx/airline.ts 讀取「全量」機場與航空公司資料並快取，
+ * 初始化時一次性呼叫 api/tdx/airport.ts 與 api/tdx/airline.ts 讀取「全量」機場與航空公司資料並快取，
  * 後續所有搜尋皆改由前端 JavaScript Array.filter 進行關鍵字比對，
- * 避免重複打 API 也解決 contains 不支援的問題。
+ * 避免重複打 API 也解決 contains 不支援的問題
  */
 export const useTdxBaseDataStore = defineStore('tdxBaseData', () => {
   /** 全量機場快取清單 */
@@ -37,8 +33,6 @@ export const useTdxBaseDataStore = defineStore('tdxBaseData', () => {
   /**
    * 初始化 Store：一次性讀取全量機場與航空公司資料
    * 若已初始化成功過，預設不重複請求（可透過 force 參數強制重新讀取）
-   *
-   * @param force 是否強制重新讀取，忽略已初始化狀態
    */
   async function initialize(force = false): Promise<void> {
     if (isInitialized.value && !force) {
@@ -70,13 +64,8 @@ export const useTdxBaseDataStore = defineStore('tdxBaseData', () => {
   }
 
   /**
-   * 前端關鍵字搜尋機場
-   * 取代 TDX 不支援的 OData contains，改以 Array.filter 進行比對
+   * 模糊比對：前端關鍵字搜尋機場
    * 比對範圍：中文名稱、英文名稱、IATA 碼、ICAO 碼（皆為包含比對，忽略大小寫）
-   *
-   * @param keyword 使用者輸入的關鍵字，空字串時回傳空陣列
-   * @param limit 回傳筆數上限，預設 30 筆（符合規範：篩選清單限前 30 筆）
-   * @returns 符合關鍵字的機場清單
    */
   function searchAirports(keyword: string, limit = 30): TdxAirport[] {
     const trimmed = keyword.trim().toLowerCase();
@@ -94,12 +83,8 @@ export const useTdxBaseDataStore = defineStore('tdxBaseData', () => {
   }
 
   /**
-   * 前端關鍵字搜尋航空公司
+   * 模糊比對：前端關鍵字搜尋航空公司
    * 比對範圍：中文名稱、英文名稱、IATA 碼、ICAO 碼（皆為包含比對，忽略大小寫）
-   *
-   * @param keyword 使用者輸入的關鍵字，空字串時回傳空陣列
-   * @param limit 回傳筆數上限，預設 30 筆
-   * @returns 符合關鍵字的航空公司清單
    */
   function searchAirlines(keyword: string, limit = 30): TdxAirline[] {
     const trimmed = keyword.trim().toLowerCase();
@@ -117,7 +102,7 @@ export const useTdxBaseDataStore = defineStore('tdxBaseData', () => {
   }
 
   /**
-   * 依 IATA 代碼取得單一機場資料（供代碼轉譯、顯示名稱等場景使用）
+   * 精準比對：依 IATA 代碼取得單一機場資料（供代碼轉譯、顯示名稱等場景使用）
    */
   function getAirportByIATA(iata: string): TdxAirport | undefined {
     return airports.value.find(
@@ -126,7 +111,7 @@ export const useTdxBaseDataStore = defineStore('tdxBaseData', () => {
   }
 
   /**
-   * 依 IATA 代碼取得單一航空公司資料
+   * 精準比對：依 IATA 代碼取得單一航空公司資料
    */
   function getAirlineByIATA(iata: string): TdxAirline | undefined {
     return airlines.value.find(

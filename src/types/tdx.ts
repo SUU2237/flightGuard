@@ -1,5 +1,7 @@
 // src/types/tdx.ts
 
+import type { AirportSearchOrigin } from "./common";
+
 /**
  * TDX 機場基本資料結構
  * 對應 TDX Air/Airport API 回傳格式（前端快取後以此型別儲存於 Store）
@@ -17,10 +19,6 @@ export interface TdxAirport {
   countryCode: string;
   /** 所在城市名稱，如「桃園」 */
   cityName?: string;
-  /** 機場座標緯度，來源為 TDX AirportPosition.PositionLat，供地圖繪製與大圓航線計算使用 */
-  latitude?: number;
-  /** 機場座標經度，來源為 TDX AirportPosition.PositionLon，供地圖繪製與大圓航線計算使用 */
-  longitude?: number;
 }
 
 /**
@@ -134,5 +132,5 @@ export interface FidsQueryParams {
   /** 查詢日期（YYYY-MM-DD），未指定則預設當日 */
   date?: string;
   /** 機場歸屬類別，用於判斷是否需套用國外機場語意反轉邏輯 */
-  airportOrigin?: 'DOMESTIC' | 'FOREIGN';
+  airportOrigin?: AirportSearchOrigin ;
 }

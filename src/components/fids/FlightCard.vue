@@ -10,6 +10,7 @@ import { useInsuranceCheck } from '@/composables/useInsuranceCheck';
 import { useTdxBaseDataStore } from '@/stores/tdxBaseData';
 import { TripStatus, InsuranceReasonType, FlightDirection, type FidsFlight } from '@/types';
 import { formatToHourMinute } from '@/utils/dateTime';
+import InsuranceBadge from '@/components/fids/InsuranceBadge.vue';
 
 const props = defineProps<{
   flight: FidsFlight;
@@ -84,31 +85,17 @@ const actualTimeValue = computed(() =>
     : props.flight.actualArrivalTime,
 );
 
-/** 不便險 Badge 樣式（依理賠判定原因分類決定顏色） */
-const insuranceBadgeClass = computed(() => {
-  if (!eligibility.value) return 'bg-gray-100 text-gray-400';
-
-  switch (reasonType.value) {
-    case InsuranceReasonType.Cancelled:
-      return 'bg-red-500 text-white';
-    case InsuranceReasonType.DelayOver4Hours:
-      return 'bg-amber-400 text-white';
-    default:
-      return 'bg-gray-100 text-gray-500';
-  }
-});
-
 function handleClick(): void {
   emit('select', props.flight);
 }
 </script>
 
 <template>
-  <!-- 取消理賠用紅色系、延誤理賠用黃色系，兩者皆比一般卡片更醒目 -->
+  <!-- 取消理賠用紅色系、延誤理賠用黃色系 -->
   <div
     class="flex cursor-pointer flex-col rounded-xl border p-4 shadow-sm transition hover:shadow-md"
     :class="
-      reasonType === 'CANCELLED'
+      reasonType === InsuranceReasonType.Cancelled
         ? 'border-2 border-red-400 bg-red-50/60 hover:border-red-500'
         : reasonType === 'DELAY_OVER_4_HOURS'
           ? 'border-2 border-amber-400 bg-amber-50/60 hover:border-amber-500'
@@ -117,7 +104,6 @@ function handleClick(): void {
     @click="handleClick"
   >
     <!-- 卡片頭部：航空公司 / 航班號 / TripStatus -->
-    <!-- min-h 確保無論是否有中文名稱，此區塊高度固定，避免下方內容跟著位移 -->
     <div class="flex min-h-52px items-start justify-between gap-2">
       <div class="min-w-0 flex-1">
         <p class="truncate text-sm text-gray-400" :title="airlineName">{{ airlineName }}</p>
@@ -167,16 +153,8 @@ function handleClick(): void {
     </div>
 
     <!-- 不便險理賠資格 Badge：左側標籤固定不換行，右側原因文字截斷避免破版 -->
-    <div class="mt-3 flex items-center justify-between gap-2 border-t border-gray-100 pt-3">
-      <span
-        class="shrink-0 whitespace-nowrap rounded-md px-2.5 py-1 text-xs font-semibold"
-        :class="insuranceBadgeClass"
-      >
-        {{ isEligible ? '✓ 符合理賠' : '不符合理賠' }}
-      </span>
-      <p v-if="displayMessage" class="min-w-0 flex-1 truncate text-right text-xs text-gray-400" :title="displayMessage">
-        {{ displayMessage }}
-      </p>
+    <div class="mt-3 border-t border-gray-100 pt-3">
+      <InsuranceBadge :eligibility="eligibility" />
     </div>
   </div>
 </template>

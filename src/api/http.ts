@@ -12,8 +12,6 @@ export const TDX_API_BASE_URL = 'https://tdx.transportdata.tw/api/basic';
 
 /**
  * 共用 Axios Instance
- * 【重要】不預設帶入 Accept 等自訂 Header，避免與 Authorization 疊加後
- * 使瀏覽器組出的 CORS Preflight 請求變複雜；僅在需要時於攔截器內動態注入 Authorization
  */
 export const httpClient: AxiosInstance = axios.create({
   baseURL: TDX_API_BASE_URL,
