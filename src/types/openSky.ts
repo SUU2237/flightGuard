@@ -89,15 +89,3 @@ export interface AircraftPosition {
   /** 該座標點對應的時間戳（毫秒） */
   timestamp: number;
 }
-
-/**
- * IATA / ICAO 代碼對應表項目
- * 用於 utils/codeMapper.ts 建立航空公司代碼轉換查找表
- * （TDX 多為 IATA 碼，OpenSky callsign 需比對 ICAO 碼開頭）
- */
-export interface AirlineCodeMapping {
-  /** 航空公司 IATA 二碼，如 "BR" */
-  iata: string;
-  /** 航空公司 ICAO 三碼，如 "EVA" */
-  icao: string;
-}

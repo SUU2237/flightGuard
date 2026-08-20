@@ -95,13 +95,6 @@ export function useFlightTracking(flight: Ref<FidsFlight | null> | FidsFlight | 
   }
 
   /**
-   * 依機場 IATA 代碼取得經緯度座標
-   */
-  function getAirportCoordinate(iataCode: string): { lat: number; lng: number } | null {
-    return getAirportCoordByIATA(iataCode);
-  }
-
-  /**
    * 動態組合 OpenSky ICAO 呼號 (如 "SJX822")
    */
   function resolveCallsign(airlineIATA: string, flightNumberDigits: string): string | null {
@@ -164,8 +157,8 @@ export function useFlightTracking(flight: Ref<FidsFlight | null> | FidsFlight | 
           updatedAt: Date.now(),
         };
 
-        const originCoord = getAirportCoordinate(currentFlight.departureAirportID);
-        const destCoord = getAirportCoordinate(currentFlight.arrivalAirportID);
+        const originCoord = getAirportCoordByIATA(currentFlight.departureAirportID);
+        const destCoord = getAirportCoordByIATA(currentFlight.arrivalAirportID);
         
         //生成大圓弧線點陣列
         routeArc.value =

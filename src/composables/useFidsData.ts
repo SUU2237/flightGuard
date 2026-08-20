@@ -56,19 +56,6 @@ export function useFidsData() {
   }
 
   /**
-   * 依查詢方向取出應比對的表定時間欄位，供前端日期篩選使用
-   */
-  function isSameLocalDate(isoString: string, dateStr: string): boolean {
-    if (!isoString || !dateStr) return true; // 未指定日期（即時/未來航班模式）時不篩選
-    const date = new Date(isoString);
-    if (Number.isNaN(date.getTime())) return false;
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const d = String(date.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}` === dateStr;
-  }
-
-  /**
    * 執行 FIDS 航班動態查詢
    *
    * 修正重點：

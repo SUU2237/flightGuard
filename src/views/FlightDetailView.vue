@@ -15,8 +15,9 @@ import { getFidsFlightByNumber } from '@/api/tdx/fids';
 import { useTdxBaseDataStore } from '@/stores/tdxBaseData';
 import { useInsuranceCheck } from '@/composables/useInsuranceCheck';
 import { useFlightTracking } from '@/composables/useFlightTracking';
-import { FlightDirection, TripStatus, type FidsFlight } from '@/types';
+import { FlightDirection, type FidsFlight } from '@/types';
 import { formatToFullDateTime } from '@/utils/dateTime';
+import { getTripStatusMeta } from '@/utils/tripStatusMeta';
 import InsuranceBadge from '@/components/fids/InsuranceBadge.vue';
 import FlightMap from '@/components/map/FlightMap.vue';
 import { nextTick, useTemplateRef } from 'vue';
@@ -173,22 +174,8 @@ const arrivalAirportName = computed(() => {
   return airport?.airportName ?? flight.value.arrivalAirportID;
 });
 
-/** TripStatus 顯示標籤 */
-const tripStatusLabel = computed(() => {
-  if (!flight.value) return '';
-  const map: Record<TripStatus, string> = {
-    [TripStatus.Normal]: '正常',
-    [TripStatus.TimeChanged]: '時間更改',
-    [TripStatus.Cancelled]: '取消',
-    [TripStatus.Delayed]: '延誤',
-    [TripStatus.Boarding]: '登機中',
-    [TripStatus.Closed]: '艙門關閉',
-    [TripStatus.Departed]: '已出發',
-    [TripStatus.Arrived]: '已抵達',
-    [TripStatus.Unknown]: '狀態未知',
-  };
-  return map[flight.value.tripStatus] ?? '狀態未知';
-});
+/** TripStatus 對應的顯示標籤與樣式 */
+const tripStatusMeta = computed(() => (flight.value ? getTripStatusMeta(flight.value.tripStatus) : null));
 
 /**
  * 返回搜尋列表頁面
@@ -240,8 +227,8 @@ function goBackToSearch(): void {
             <p class="text-sm text-gray-400">{{ airlineName }}</p>
             <h1 class="text-2xl font-bold text-gray-800">{{ flight.flightNumber }}</h1>
           </div>
-          <span class="rounded-full bg-blue-50 px-4 py-1.5 text-sm font-medium text-blue-600">
-            {{ tripStatusLabel }}
+          <span class="rounded-full px-4 py-1.5 text-sm font-medium" :class="tripStatusMeta?.badgeClass">
+            {{ tripStatusMeta?.label }}
           </span>
         </div>
 
@@ -365,13 +352,7 @@ function goBackToSearch(): void {
       <!-- 不便險理賠資格分析卡 -->
       <div
         class="flex flex-col rounded-xl border p-4 shadow-sm transition"
-        :class="
-          tripStatusLabel === '取消'
-            ? 'border-2 border-red-400 bg-red-50/70'
-            : tripStatusLabel === '延誤'
-              ? 'border-2 border-amber-400 bg-amber-50/70'
-              : 'border-gray-200 bg-slate-50/50'
-        "
+        :class="tripStatusMeta?.accentBorderClass"
       >
         <div class="mb-3 flex items-center justify-between">
           <h2 class="text-base font-semibold text-gray-800">不便險理賠資格分析</h2>
@@ -381,17 +362,8 @@ function goBackToSearch(): void {
         <div class="mt-4 flex flex-col gap-2.5 text-sm">
           <div class="flex items-center justify-between rounded-lg border border-gray-200/80 bg-white px-3.5 py-2.5 shadow-xs">
             <span class="text-xs font-medium text-gray-500">判定狀態</span>
-            <span
-              class="font-semibold"
-              :class="
-                tripStatusLabel === '取消'
-                  ? 'text-red-600'
-                  : tripStatusLabel === '延誤'
-                    ? 'text-amber-600'
-                    : 'text-gray-700'
-              "
-            >
-              {{ tripStatusLabel }}
+            <span class="font-semibold" :class="tripStatusMeta?.accentTextClass">
+              {{ tripStatusMeta?.label }}
             </span>
           </div>
 

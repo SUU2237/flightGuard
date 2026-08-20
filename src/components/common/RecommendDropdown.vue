@@ -4,7 +4,10 @@
  * 常見推薦清單下拉選單元件
  *
  * 於使用者 Focus 輸入框但尚未打字時顯示，展示如「常見機場」「常見航空公司」等推薦項目
+ * 容器與項目列骨架由 DropdownList.vue 共用，本元件只負責標題列與空狀態的顯示內容
  */
+import DropdownList from '@/components/common/DropdownList.vue';
+
 const props = withDefaults(
   defineProps<{
     /** 推薦項目清單 */
@@ -39,21 +42,18 @@ function handleSelect(item: T): void {
 </script>
 
 <template>
-  <ul
-    class="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
-  >
-    <li class="px-3 py-1.5 text-xs font-medium text-gray-400">{{ title }}</li>
+  <DropdownList :items="items" :get-key="getKey" @select="handleSelect">
+    <template #header>
+      <li class="px-3 py-1.5 text-xs font-medium text-gray-400">{{ title }}</li>
+    </template>
 
-    <li
-      v-for="item in items"
-      :key="getKey(item)"
-      class="cursor-pointer px-3 py-2 text-sm text-gray-700 transition hover:bg-blue-50"
-      @mousedown.prevent="handleSelect(item)"
-    >
+    <template #item="{ item }">
       <span class="font-medium text-gray-800">{{ getLabel(item) }}</span>
       <span v-if="getSubLabel" class="ml-1 text-gray-400">({{ getSubLabel(item) }})</span>
-    </li>
+    </template>
 
-    <li v-if="items.length === 0" class="px-3 py-2 text-sm text-gray-400">尚無推薦項目</li>
-  </ul>
+    <template #empty>
+      <li class="px-3 py-2 text-sm text-gray-400">尚無推薦項目</li>
+    </template>
+  </DropdownList>
 </template>

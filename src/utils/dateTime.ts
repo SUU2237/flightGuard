@@ -49,37 +49,3 @@ export function formatToFullDateTime(
   return `${dateStr} ${timeStr}`;
 }
 
-/**
- * 判斷指定 ISO 時間字串是否為「今天」（避免 1 年前的今天也被誤判為今天）
- */
-export function isToday(isoString: string | null | undefined): boolean {
-  if (!isoString) return false;
-
-  const date = new Date(isoString);
-  if (Number.isNaN(date.getTime())) return false;
-
-  const now = new Date();
-  return (
-    date.getFullYear() === now.getFullYear() &&
-    date.getMonth() === now.getMonth() &&
-    date.getDate() === now.getDate()
-  );
-}
-
-/**
- * 計算兩個 ISO 時間字串之間的時間差（分鐘）
- * 通用時間差計算工具，與不便險門檻邏輯無關（不便險專用計算請見 utils/insuranceRule.ts）
- */
-export function diffInMinutes(
-  fromISO: string | null | undefined,
-  toISO: string | null | undefined,
-): number | null {
-  if (!fromISO || !toISO) return null;
-
-  const fromTime = new Date(fromISO).getTime();
-  const toTime = new Date(toISO).getTime();
-
-  if (Number.isNaN(fromTime) || Number.isNaN(toTime)) return null;
-
-  return Math.round((toTime - fromTime) / (1000 * 60));
-}

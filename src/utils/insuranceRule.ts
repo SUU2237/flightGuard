@@ -17,7 +17,7 @@ const DEFAULT_DELAY_THRESHOLD_MINUTES = 60;
  * 純數學計算，不依賴任何外部狀態
  * returns 時間差計算結果，正值代表延誤，負值代表提前
  */
-export function calculateDelayMinutes(
+function calculateDelayMinutes(
   scheduleTimeISO: string | null | undefined,
   actualTimeISO: string | null | undefined,
   thresholdMinutes: number = DEFAULT_DELAY_THRESHOLD_MINUTES,

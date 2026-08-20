@@ -1,13 +1,9 @@
 // src/composables/useAirportSearch.ts
 
-import { ref, computed } from 'vue';
+import { computed } from 'vue';
 import { useTdxBaseDataStore } from '@/stores/tdxBaseData';
-import {
-  SearchMode,
-  AirportSearchOrigin,
-  FlightDirection,
-  type TdxAirport,
-} from '@/types';
+import { useEntitySearch } from '@/composables/useEntitySearch';
+import { FlightDirection, type TdxAirport } from '@/types';
 
 /**
  * 常見推薦機場 IATA 代碼清單
@@ -26,142 +22,63 @@ const RECOMMENDED_AIRPORT_IATA_LIST = [
   'BKK', // 曼谷素萬那普
 ];
 
-/** 輸入偵測後觸發前端 Array.filter 篩選的 Debounce 延遲時間（毫秒） */
-const FILTER_DEBOUNCE_MS = 300;
+/**
+ * 台灣國內機場 IATA 代碼白名單
+ */
+const DOMESTIC_AIRPORT_IATA_LIST = [
+  'TPE', // 桃園
+  'TSA', // 松山
+  'KHH', // 高雄小港
+  'RMQ', // 台中
+  'MZG', // 馬公
+  'TTT', // 台東
+  'HUN', // 花蓮
+  'KYD', // 蘭嶼
+  'CMJ', // 七美
+  'WOT', // 望安
+  'KNH', // 金門
+  'LZN', // 南竿
+  'GNI', // 綠島
+];
 
-/** Blur 收起下拉選單前的延遲時間（毫秒），確保點擊選項的 click 事件能先觸發 */
-const BLUR_CLOSE_DELAY_MS = 150;
+/**
+ * 判斷指定機場是否為台灣本地機場
+ */
+function isDomesticAirport(airport: TdxAirport): boolean {
+  return DOMESTIC_AIRPORT_IATA_LIST.includes(airport.airportIATA.toUpperCase());
+}
 
 /**
  * 機場搜尋輸入框互動邏輯 composable
  *
- * 管理項目：
- * - Focus / Blur / 打字三種狀態切換 (SearchMode)
- * - 前端關鍵字篩選（透過 useTdxBaseDataStore.searchAirports，限前 30 筆）
- * - 國外機場離站/進站語意反轉標記與查詢代碼轉換
+ * 共用 Focus / Blur / 打字三種狀態切換與前端關鍵字篩選邏輯（見 useEntitySearch），
+ * 本檔案只額外處理機場搜尋特有的「國外機場離站/進站語意反轉」標記與查詢代碼轉換
  */
-export function useAirportSearch(instanceLabel = 'default') {
+export function useAirportSearch() {
   const tdxStore = useTdxBaseDataStore();
 
-  /** 使用者輸入框中的原始文字內容 */
-  const keyword = ref('');
-  /** 目前輸入框互動狀態 */
-  const searchMode = ref<SearchMode>(SearchMode.Idle);
-  /** 打字篩選後的機場清單（限前 30 筆） */
-  const filteredAirports = ref<TdxAirport[]>([]);
-  /** 已選定的機場（選取後回填至輸入框） */
-  const selectedAirport = ref<TdxAirport | null>(null);
-
-  /** Debounce 計時器 handle */
-  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-  /** Blur 延遲關閉計時器 handle */
-  let blurTimer: ReturnType<typeof setTimeout> | null = null;
-
-  /**
-   * 常見推薦機場清單（由全量快取中依白名單 IATA 代碼篩出，保持顯示順序）
-   */
-  const recommendedAirports = computed<TdxAirport[]>(() => {
-    return RECOMMENDED_AIRPORT_IATA_LIST.map((iata) =>
-      tdxStore.getAirportByIATA(iata),
-    ).filter((airport): airport is TdxAirport => Boolean(airport));
+  const {
+    keyword,
+    searchMode,
+    filteredItems: filteredAirports,
+    selectedItem: selectedAirport,
+    recommendedItems: recommendedAirports,
+    onFocus,
+    onBlur,
+    onInput,
+    selectItem: selectAirport,
+    clearSelection: clearAirport,
+  } = useEntitySearch<TdxAirport>({
+    formatKeyword: (airport) => `${airport.airportName} (${airport.airportIATA})`,
+    search: (keyword, limit) => tdxStore.searchAirports(keyword, limit),
+    recommendedIds: RECOMMENDED_AIRPORT_IATA_LIST,
+    getById: (iata) => tdxStore.getAirportByIATA(iata),
   });
 
-  /**
-   * 台灣國內機場 IATA 代碼白名單
-   */
-  const DOMESTIC_AIRPORT_IATA_LIST = [
-    'TPE', // 桃園
-    'TSA', // 松山
-    'KHH', // 高雄小港
-    'RMQ', // 台中
-    'MZG', // 馬公
-    'TTT', // 台東
-    'HUN', // 花蓮
-    'KYD', // 蘭嶼
-    'CMJ', // 七美
-    'WOT', // 望安
-    'KNH', // 金門
-    'LZN', // 南竿
-    'GNI', // 綠島
-  ];
-
-  /**
-   * 判斷指定機場是否為台灣本地機場
-   */
-  function isDomesticAirport(airport: TdxAirport): boolean {
-    return DOMESTIC_AIRPORT_IATA_LIST.includes(airport.airportIATA.toUpperCase());
-  }
-
   /** 是否已選取國外機場（供 UI 顯示提示文字與查詢邏輯反轉判斷使用） */
-
   const isForeignAirport = computed(() => {
     return selectedAirport.value ? !isDomesticAirport(selectedAirport.value) : false;
   });
-
-  /**
-   * Focus 彈出「常見推薦視窗」
-   */
-  function onFocus(): void {
-    if (blurTimer) {
-      clearTimeout(blurTimer);
-      blurTimer = null;
-    }
-    searchMode.value = keyword.value ? SearchMode.FilterTyping : SearchMode.RecommendOpen;
-  }
-
-  /**
-   * Blur 點擊空白處後收起下拉選單
-   */
-  function onBlur(): void {
-    blurTimer = setTimeout(() => {
-      searchMode.value = SearchMode.Idle;
-    }, BLUR_CLOSE_DELAY_MS);
-  }
-
-  /**
-   * 偵測到輸入框正在打字時，關閉推薦視窗，做進行關鍵字篩選
-   */
-  function onInput(value: string): void {
-    keyword.value = value;
-
-    if (debounceTimer) {
-      clearTimeout(debounceTimer);
-    }
-
-    if (!value.trim()) {
-      searchMode.value = SearchMode.RecommendOpen;
-      filteredAirports.value = [];
-      return;
-    }
-
-    searchMode.value = SearchMode.FilterTyping;
-
-    debounceTimer = setTimeout(() => {
-      filteredAirports.value = tdxStore.searchAirports(value, 30);
-    }, FILTER_DEBOUNCE_MS);
-  }
-
-  /**
-   * 記錄選取的機場（可能來自推薦清單或篩選清單點擊）
-   */
-  function selectAirport(airport: TdxAirport): void {
-    selectedAirport.value = airport;
-    keyword.value = `${airport.airportName} (${airport.airportIATA})`;
-    filteredAirports.value = [];
-    searchMode.value = SearchMode.Idle;
-  }
-
-  /**
-   * 清空機場搜尋（清空關鍵字、已選機場、篩選結果，並重設互動狀態為 Idle）
-   */
-  function clearAirport(): void {
-    keyword.value = '';
-    selectedAirport.value = null;
-    filteredAirports.value = [];
-    searchMode.value = SearchMode.Idle;
-    if (debounceTimer) clearTimeout(debounceTimer);
-    if (blurTimer) clearTimeout(blurTimer);
-  }
 
   /**
    * 取得實際應送往 TDX 查詢的機場代碼（桃園機場 or 其餘台灣機場）

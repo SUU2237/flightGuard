@@ -1,6 +1,6 @@
 // src/stores/tdxBaseData.ts
 
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 import { defineStore } from 'pinia';
 import { getAllAirports } from '@/api/tdx/airport';
 import { getAllAirlines } from '@/api/tdx/airline';
@@ -24,11 +24,6 @@ export const useTdxBaseDataStore = defineStore('tdxBaseData', () => {
   const error = ref<string | null>(null);
   /** 是否已完成初始化（避免重複請求 API） */
   const isInitialized = ref(false);
-
-  /** 機場快取是否為空（供 UI 判斷是否顯示錯誤或重試按鈕） */
-  const hasAirportData = computed(() => airports.value.length > 0);
-  /** 航空公司快取是否為空 */
-  const hasAirlineData = computed(() => airlines.value.length > 0);
 
   /**
    * 初始化 Store：一次性讀取全量機場與航空公司資料
@@ -126,9 +121,6 @@ export const useTdxBaseDataStore = defineStore('tdxBaseData', () => {
     isLoading,
     error,
     isInitialized,
-    // getters
-    hasAirportData,
-    hasAirlineData,
     // actions
     initialize,
     searchAirports,

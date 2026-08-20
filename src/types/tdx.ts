@@ -1,7 +1,5 @@
 // src/types/tdx.ts
 
-import type { AirportSearchOrigin } from "./common";
-
 /**
  * TDX 機場基本資料結構
  * 對應 TDX Air/Airport API 回傳格式（前端快取後以此型別儲存於 Store）
@@ -131,6 +129,4 @@ export interface FidsQueryParams {
   direction: FlightDirection;
   /** 查詢日期（YYYY-MM-DD），未指定則預設當日 */
   date?: string;
-  /** 機場歸屬類別，用於判斷是否需套用國外機場語意反轉邏輯 */
-  airportOrigin?: AirportSearchOrigin ;
 }

@@ -6,7 +6,10 @@
  * 於使用者打字時顯示，展示前端 Array.filter 篩選後的結果清單（限前 30 筆）。
  * 支援關鍵字高亮顯示，並於查無結果時顯示 Empty State 提示。
  * 使用泛型 T 讓元件不限制只能裝「機場」；它可以裝機場、航空公司、甚至是未來的保險清單
+ * 容器與項目列骨架由 DropdownList.vue 共用，本元件只負責高亮與空狀態的顯示內容
  */
+import DropdownList from '@/components/common/DropdownList.vue';
+
 const props = withDefaults(
   defineProps<{
     /** 篩選後的項目清單（已限制筆數，本元件不再另行截斷） */
@@ -65,15 +68,8 @@ function handleSelect(item: T): void {
 </script>
 
 <template>
-  <ul
-    class="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
-  >
-    <li
-      v-for="item in items"
-      :key="getKey(item)"
-      class="cursor-pointer px-3 py-2 text-sm text-gray-700 transition hover:bg-blue-50"
-      @mousedown.prevent="handleSelect(item)"
-    >
+  <DropdownList :items="items" :get-key="getKey" @select="handleSelect">
+    <template #item="{ item }">
       <span class="font-medium text-gray-800">
         <template v-for="(part, idx) in splitByKeyword(getLabel(item))" :key="idx">
           <mark v-if="part.matched" class="rounded bg-yellow-200 px-0.5 text-gray-900">{{
@@ -83,23 +79,24 @@ function handleSelect(item: T): void {
         </template>
       </span>
       <span v-if="getSubLabel" class="ml-1 text-gray-400">({{ getSubLabel(item) }})</span>
-    </li>
+    </template>
 
-    <!-- Empty State：查無篩選結果 -->
-    <li v-if="items.length === 0" class="flex flex-col items-center gap-1 px-3 py-6 text-center">
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        class="h-8 w-8 text-gray-300"
-        viewBox="0 0 20 20"
-        fill="currentColor"
-      >
-        <path
-          fill-rule="evenodd"
-          d="M9 3.5a5.5 5.5 0 1 0 3.61 9.65l3.87 3.87a.75.75 0 1 0 1.06-1.06l-3.87-3.87A5.5 5.5 0 0 0 9 3.5ZM5 9a4 4 0 1 1 8 0 4 4 0 0 1-8 0Z"
-          clip-rule="evenodd"
-        />
-      </svg>
-      <span class="text-sm text-gray-400">{{ emptyText }}</span>
-    </li>
-  </ul>
+    <template #empty>
+      <li class="flex flex-col items-center gap-1 px-3 py-6 text-center">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="h-8 w-8 text-gray-300"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+        >
+          <path
+            fill-rule="evenodd"
+            d="M9 3.5a5.5 5.5 0 1 0 3.61 9.65l3.87 3.87a.75.75 0 1 0 1.06-1.06l-3.87-3.87A5.5 5.5 0 0 0 9 3.5ZM5 9a4 4 0 1 1 8 0 4 4 0 0 1-8 0Z"
+            clip-rule="evenodd"
+          />
+        </svg>
+        <span class="text-sm text-gray-400">{{ emptyText }}</span>
+      </li>
+    </template>
+  </DropdownList>
 </template>

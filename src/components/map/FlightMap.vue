@@ -185,15 +185,6 @@ function updateAircraftMarker(): void {
     );
 }
 
-/**
- * 手動觸發聚焦到目前飛機位置（僅 InAir 時有效）
- */
-function focusOnAircraft(): void {
-  if (isInAir.value && flightState.value?.latitude !== null && flightState.value?.longitude !== null) {
-    setMapFocus(flightState.value!.latitude!, flightState.value!.longitude!, 9);
-  }
-}
-
 onMounted(() => {
   if (!mapContainer.value) return;
 

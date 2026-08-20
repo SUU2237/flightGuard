@@ -34,19 +34,7 @@ export function useInsuranceCheck(flight: Ref<FidsFlight | null> | FidsFlight | 
     return checkInsuranceEligibility(currentFlight.tripStatus, scheduleTime, actualTime);
   });
 
-  /** 是否符合理賠資格（便於 UI 直接綁定高亮樣式，尚無資料時為 false） */
-  const isEligible = computed<boolean>(() => eligibility.value?.isEligible ?? false);
-
-  /** 理賠原因分類（尚無資料時為 null） */
-  const reasonType = computed(() => eligibility.value?.reasonType ?? null);
-
-  /** UI 顯示用的判定說明文字（尚無資料時為空字串） */
-  const displayMessage = computed<string>(() => eligibility.value?.displayMessage ?? '');
-
   return {
     eligibility,
-    isEligible,
-    reasonType,
-    displayMessage,
   };
 }

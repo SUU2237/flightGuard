@@ -14,16 +14,3 @@ export enum SearchMode {
   /** 使用者輸入中，顯示關鍵字篩選清單（前端 filter） */
   FilterTyping = 'FILTER_TYPING',
 }
-
-/**
- * 標記使用者選擇的機場歸屬類別
- * 用於判斷是否需要套用「國外機場離站/進站語意反轉」邏輯
- * - Domestic：台灣本地機場（TDX 直接支援）
- * - Foreign：國外機場（TDX 僅回傳與桃園機場的往返航班，且離站/進站語意相反）
- */
-export enum AirportSearchOrigin {
-  /** 台灣本地機場 */
-  Domestic = 'DOMESTIC',
-  /** 國外機場 */
-  Foreign = 'FOREIGN',
-}

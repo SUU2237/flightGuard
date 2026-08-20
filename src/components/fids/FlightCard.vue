@@ -8,8 +8,9 @@
 import { computed } from 'vue';
 import { useInsuranceCheck } from '@/composables/useInsuranceCheck';
 import { useTdxBaseDataStore } from '@/stores/tdxBaseData';
-import { TripStatus, InsuranceReasonType, FlightDirection, type FidsFlight } from '@/types';
+import { InsuranceReasonType, FlightDirection, type FidsFlight } from '@/types';
 import { formatToHourMinute } from '@/utils/dateTime';
+import { getTripStatusMeta } from '@/utils/tripStatusMeta';
 import InsuranceBadge from '@/components/fids/InsuranceBadge.vue';
 
 const props = defineProps<{
@@ -23,7 +24,7 @@ const emit = defineEmits<{
 const tdxStore = useTdxBaseDataStore();
 
 /** 不便險理賠資格判定（傳入單一航班，非 ref 亦可，內部會自動 unref） */
-const { eligibility, isEligible, reasonType, displayMessage } = useInsuranceCheck(props.flight);
+const { eligibility } = useInsuranceCheck(props.flight);
 
 /** 航空公司顯示名稱（優先中文名，查無則退回原始 IATA 代碼） */
 const airlineName = computed(() => {
@@ -44,28 +45,7 @@ const arrivalAirportName = computed(() => {
 });
 
 /** TripStatus 對應的顯示標籤文字與樣式 */
-const tripStatusMeta = computed(() => {
-  switch (props.flight.tripStatus) {
-    case TripStatus.Normal:
-      return { label: '正常', class: 'bg-green-50 text-green-600' };
-    case TripStatus.TimeChanged:
-      return { label: '時間更改', class: 'bg-amber-50 text-amber-600' };
-    case TripStatus.Cancelled:
-      return { label: '取消', class: 'bg-red-50 text-red-600' };
-    case TripStatus.Delayed:
-      return { label: '延誤', class: 'bg-amber-50 text-amber-600' };
-    case TripStatus.Boarding:
-      return { label: '登機中', class: 'bg-blue-50 text-blue-600' };
-    case TripStatus.Closed:
-      return { label: '艙門關閉', class: 'bg-gray-100 text-gray-500' };
-    case TripStatus.Departed:
-      return { label: '已出發', class: 'bg-blue-50 text-blue-600' };
-    case TripStatus.Arrived:
-      return { label: '已抵達', class: 'bg-gray-100 text-gray-500' };
-    default:
-      return { label: '狀態未知', class: 'bg-gray-100 text-gray-400' };
-  }
-});
+const tripStatusMeta = computed(() => getTripStatusMeta(props.flight.tripStatus));
 
 /** 依查詢方向決定卡片主要顯示的表定/實際時間欄位 */
 const scheduleTimeLabel = computed(() =>
@@ -95,9 +75,9 @@ function handleClick(): void {
   <div
     class="flex cursor-pointer flex-col rounded-xl border p-4 shadow-sm transition hover:shadow-md"
     :class="
-      reasonType === InsuranceReasonType.Cancelled
+      eligibility?.reasonType === InsuranceReasonType.Cancelled
         ? 'border-2 border-red-400 bg-red-50/60 hover:border-red-500'
-        : reasonType === 'DELAY_OVER_4_HOURS'
+        : eligibility?.reasonType === InsuranceReasonType.DelayOver4Hours
           ? 'border-2 border-amber-400 bg-amber-50/60 hover:border-amber-500'
           : 'border-gray-200 bg-white hover:border-blue-300'
     "
@@ -111,7 +91,7 @@ function handleClick(): void {
       </div>
       <span
         class="shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium"
-        :class="tripStatusMeta.class"
+        :class="tripStatusMeta.badgeClass"
       >
         {{ tripStatusMeta.label }}
       </span>

@@ -10,7 +10,7 @@
  * onMounted 時呼叫 useTdxBaseDataStore.initialize() 預先載入機場/航空公司全量快取，
  * 確保後續搜尋互動（Array.filter 前端篩選）有資料可用
  */
-import { ref, onMounted, shallowRef, onActivated , computed} from 'vue';
+import { ref, onMounted, shallowRef, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useTdxBaseDataStore } from '@/stores/tdxBaseData';
 import { useFidsData } from '@/composables/useFidsData';
