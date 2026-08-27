@@ -13,13 +13,6 @@ import { getTodayDateString } from '@/utils/dateTime';
 
 /**
  * FIDS 航班動態查詢邏輯 composable
- *
- * 整合項目：
- * - useAirportSearch：機場輸入互動狀態與國外機場語意反轉邏輯
- * - useAirlineSearch：航空公司輸入互動狀態
- * - 航班號關鍵字、查詢方向、查詢結果、loading/error 狀態
- *
- * 查詢規則：機場、航班號至少需擇一填入才可發起查詢
  */
 export function useFidsData() {
   const airport = useAirportSearch();
@@ -57,13 +50,6 @@ export function useFidsData() {
 
   /**
    * 執行 FIDS 航班動態查詢
-   *
-   * 修正重點：
-   * 1. 國外機場二次過濾：TDX 僅能查「與桃園的往返」，故抓回資料後必須額外比對
-   *    對方機場（出發或抵達）是否確實等於使用者選擇的國外機場，避免不同國外機場的航班混在一起
-   * 2. 航空公司過濾：新增依 airline.selectedAirline 過濾 flight.airlineID
-   * 3. 時間過濾欄位修正：依查詢方向決定要比對「出發時間」還是「抵達時間」，
-   *    避免進站查詢誤用出發時間做 buffer/日期比對，導致有效航班被濾掉
    */
   async function search(): Promise<void> {
     if (!canSearch.value) {
@@ -85,8 +71,9 @@ export function useFidsData() {
       const isForeign = airport.isForeignAirport.value;                                 //記錄查詢當下的原始使用者選擇，避免搜尋期間使用者亂按
       const originalForeignIATA = isForeign ? selectedAirport?.airportIATA : null;      //如果是國外機場，取其IATA碼，否則null
 
+      // Ⅰ. 有選機場
       if (selectedAirport) {
-        // 3. 如果選國外機場，透過 Composable 轉為「桃園端點」與「反轉方向」
+        // 3. 如果選國外機場，透過 Composable 轉為「桃園機場」與「反轉方向」
         const airportCode = airport.getEffectiveQueryAirportCode();
         const effectiveDirection = airport.getEffectiveDirection(direction.value);
 
@@ -106,8 +93,6 @@ export function useFidsData() {
             ? await getFidsFlightDeparture(params)
             : await getFidsFlightArrival(params);
 
-        console.log('[useFidsData] API 回傳筆數（過濾前）:', result.length);
-
         // 6. 國外機場二次過濾：從桃園回傳的大量資料中，只挑出對方機場剛好是該國外機場的班機
         if (isForeign && originalForeignIATA) {
           result = result.filter((f) => {
@@ -117,37 +102,21 @@ export function useFidsData() {
                 : f.arrivalAirportID;
             return counterpartAirport === originalForeignIATA;
           });
-          console.log(
-            '[useFidsData] 國外機場二次過濾（比對對方機場 =',
-            originalForeignIATA,
-            '）後筆數:',
-            result.length,
-          );
         }
       } 
-      // 7. 如果沒選機場只輸入航班號，直接打依航班號查詢的 API
+      // Ⅱ. 如果沒選機場只輸入航班號，直接打依航班號查詢的 API
       else {
         result = await getFidsFlightByNumber(trimmedFlightNumber, direction.value);
       }
 
-      // 航空公司過濾
+      // Ⅲ. 機場+航空公司過濾
       if (selectedAirline) {
-        const beforeCount = result.length;
         result = result.filter((f) => f.airlineID === selectedAirline.airlineIATA);
-        console.log(
-          '[useFidsData] 航空公司過濾（',
-          selectedAirline.airlineIATA,
-          '）:',
-          beforeCount,
-          '→',
-          result.length,
-        );
       }
 
       /**
-       * 取得飛機「最新/真實的動態時間點」
-       * 用在即時/未來模式
-       * 依每筆資料「自己實際的 f.direction」判斷要看出發或抵達時間欄位
+       * 取得飛機「最新的一個動態時間點」，用在即時/未來模式。
+       * 只挑出 1 個最新有效時間點，等等來算實際要搜尋的時間範圍（最新時間點跟「現在時間 - 30分鐘」比對，把太舊的飛機濾掉）
        */
       function getReferenceTimeISO(f: FidsFlight): string | null {
         const primary =
@@ -180,6 +149,7 @@ export function useFidsData() {
         const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
         const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
         
+        //過濾表定時間有沒有在今天內
         result = result.filter((f) => {
           const scheduleTimeISO = getScheduleTimeISO(f);
           if (!scheduleTimeISO) return false;
@@ -188,7 +158,6 @@ export function useFidsData() {
           return scheduleTime.getTime() >= startOfToday.getTime() && scheduleTime.getTime() <= endOfToday.getTime();
         });
 
-        console.log('[useFidsData] 今日全天範圍:', startOfToday.toISOString(), '~', endOfToday.toISOString());
       } 
       //搜尋「即時/未來」
       else {
@@ -204,7 +173,6 @@ export function useFidsData() {
         });
       }
 
-      console.log('[useFidsData] scopeMode:', scopeMode.value, '最終顯示筆數:', result.length);
       // 10. 將最終過濾好的乾淨清單更新給響應式變數 flightList，畫面自動重新渲染
       flightList.value = result;
     } catch (err) {

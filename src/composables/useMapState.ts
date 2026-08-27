@@ -34,12 +34,10 @@ export function useMapState() {
 
   /**
    * 重設地圖視角時：退回全台檢視視圖
-   * 同時清除目前聚焦中的航班
    */
   function resetMapView(): void {
     center.value = { ...DEFAULT_CENTER };
     zoom.value = DEFAULT_ZOOM;
-    //selectedFlight.value = null;
   }
 
   return {

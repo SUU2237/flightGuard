@@ -10,7 +10,7 @@ import type { TdxAirport, TdxAirline } from '@/types';
  * TDX 基礎資料 Store（機場 / 航空公司）
  * 初始化時一次性呼叫 api/tdx/airport.ts 與 api/tdx/airline.ts 讀取「全量」機場與航空公司資料並快取，
  * 後續所有搜尋皆改由前端 JavaScript Array.filter 進行關鍵字比對，
- * 避免重複打 API 也解決 contains 不支援的問題
+ * 避免重複打 API
  */
 export const useTdxBaseDataStore = defineStore('tdxBaseData', () => {
   /** 全量機場快取清單 */
@@ -38,15 +38,10 @@ export const useTdxBaseDataStore = defineStore('tdxBaseData', () => {
     error.value = null;
 
     try {
-      console.debug('[tdxBaseData] 開始載入機場與航空公司全量資料...');
-
       const [airportList, airlineList] = await Promise.all([
         getAllAirports(),
         getAllAirlines(),
       ]);
-      console.debug('[tdxBaseData] 機場筆數:', airportList.length);
-      console.debug('[tdxBaseData] 航空公司筆數:', airlineList.length);
-
       airports.value = airportList;
       airlines.value = airlineList;
       isInitialized.value = true;

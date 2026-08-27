@@ -14,6 +14,7 @@ import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 
 
 console.log('[ENV CHECK]', import.meta.env.VITE_TDX_CLIENT_ID);
+// 刪除 Leaflet 內部動態計算圖檔路徑的方法（因為在 Vite 打包環境下，Leaflet 原生路徑解析會導致圖示破圖 404）
 delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: markerIcon2x,

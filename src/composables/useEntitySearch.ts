@@ -27,10 +27,6 @@ export interface UseEntitySearchOptions<T> {
 
 /**
  * 「輸入框 + Focus 常見推薦清單 + 打字 Debounce 篩選清單」共用互動邏輯 composable
- *
- * 抽出機場搜尋 (useAirportSearch) 與航空公司搜尋 (useAirlineSearch) 完全相同的
- * Focus / Blur / Debounce 篩選 / 選取 / 清空狀態機，兩者只需提供各自的資料存取方式即可複用，
- * 避免同一套邏輯在兩個檔案各維護一份
  */
 export function useEntitySearch<T>(options: UseEntitySearchOptions<T>) {
   const { formatKeyword, search, recommendedIds, getById, limit = DEFAULT_LIMIT } = options;
@@ -49,7 +45,10 @@ export function useEntitySearch<T>(options: UseEntitySearchOptions<T>) {
   /** Blur 延遲關閉計時器 handle */
   let blurTimer: ReturnType<typeof setTimeout> | null = null;
 
-  /** 常見推薦項目清單（由全量快取中依白名單 id 篩出，保持顯示順序） */
+  /** 
+   *  常見推薦項目清單：逐一拿代碼去 Store 換成完整的機場資料物件 
+   *  將recommendedItems 的型別成功收窄成乾淨的 ComputedRef<T[]>
+   */
   const recommendedItems: ComputedRef<T[]> = computed(() =>
     recommendedIds.map((id) => getById(id)).filter((item): item is T => Boolean(item)),
   );
@@ -84,6 +83,7 @@ export function useEntitySearch<T>(options: UseEntitySearchOptions<T>) {
       clearTimeout(debounceTimer);
     }
 
+    //使用者把字全部刪光（或只剩空白）
     if (!value.trim()) {
       searchMode.value = SearchMode.RecommendOpen;
       filteredItems.value = [];

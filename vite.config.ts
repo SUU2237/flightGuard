@@ -2,8 +2,7 @@
 
 /**
  * Vite 專案設定檔
- * - 掛載 @vitejs/plugin-vue 支援 .vue 單檔元件
- * - 設定 @ 路徑別名指向 src/，對應本專案所有 import '@/...' 寫法
+ * 設定 Vite 開發伺服器與打包規則，並定義 @ 代表 src/ 資料夾
  */
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
@@ -13,6 +12,7 @@ export default defineConfig({
   base: process.env.NODE_ENV === 'production' ? '/flightGuard/' : '/',
   plugins: [vue()],
   resolve: {
+    //@ 指向 ./src 資料夾，讓程式碼中可以用 @/components/... 進行簡潔引入
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },

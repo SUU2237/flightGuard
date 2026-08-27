@@ -35,13 +35,13 @@ const TRIP_STATUS_META: Record<TripStatus, TripStatusMeta> = {
   },
   [TripStatus.Cancelled]: {
     label: '取消',
-    badgeClass: 'bg-red-50 text-red-600',
+    badgeClass: 'bg-red-100 text-red-600 ',
     accentTextClass: 'text-red-600',
     accentBorderClass: 'border-2 border-red-400 bg-red-50/70',
   },
   [TripStatus.Delayed]: {
     label: '延誤',
-    badgeClass: 'bg-amber-50 text-amber-600',
+    badgeClass: 'bg-amber-100 text-amber-600',
     accentTextClass: 'text-amber-600',
     accentBorderClass: 'border-2 border-amber-400 bg-amber-50/70',
   },

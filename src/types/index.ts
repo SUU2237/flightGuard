@@ -9,3 +9,4 @@ export * from './common';
 export * from './tdx';
 export * from './openSky';
 export * from './insurance';
+export * from './claim';

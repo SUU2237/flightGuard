@@ -69,15 +69,11 @@ export function calculateShortestLngDelta(lng1: number, lng2: number): number {
 }
 
 /**
- * 新增：計算「與起點連續」的終點經度（unwrap 後的座標）
+ * 計算「與起點連續」的終點經度（unwrap 後的座標）
  *
  * 用途：機場 Marker、fitBounds 等所有需要與大圓航線對齊的視覺元素，
  * 都必須使用與 generateGreatCircleArc() 內部相同的連續經度系統，
  * 否則會出現「航線畫到地圖右側，但終點 Marker 卻停在地圖左側」的視覺脫節
- *
- * @param originLng 起點經度（-180 ~ 180）
- * @param destLng 終點經度（-180 ~ 180）
- * @returns 以 originLng 為基準、連續無斷裂的終點經度（可能超出 -180~180 範圍，這是正常且必要的）
  */
 export function getUnwrappedDestLng(originLng: number, destLng: number): number {
   const shortestDelta = calculateShortestLngDelta(originLng, destLng);
@@ -89,7 +85,7 @@ export function getUnwrappedDestLng(originLng: number, destLng: number): number 
  * 生成大圓航線的中間曲率點陣列，供地圖繪製連續平滑的航線使用
  *
  * 計算方式：
- * 1. 依據起訖點經度計算「最短經度差」（跨換日線修正），取得實際繪製方向
+ * 1. 依據起降機場經度計算「最短經度差」（跨換日線修正），取得實際繪製方向
  * 2. 依總大圓距離動態決定中間點數量（距離越遠，曲率弧度越明顯，取點數應越多）
  * 3. 以球面線性插值 (Slerp) 概念，沿大圓路徑內插各點的經緯度，
  *    確保高緯度長距離航線呈現正確的弧形曲線，而非直線
@@ -107,7 +103,7 @@ export function generateGreatCircleArc(
   const lng1 = toRadians(originLng);
   const lat2 = toRadians(destLat);
 
-  // 依「最短經度差」重新推算終點經度（弧度），確保走太平洋最短路徑而非繞經歐非大陸
+  // 依「最短經度差」重新推算終點經度（弧度），判定走太平洋還是大西洋距離較短
   const shortestLngDelta = calculateShortestLngDelta(originLng, destLng);
   const adjustedDestLng = originLng + shortestLngDelta;
   const lng2 = toRadians(adjustedDestLng);

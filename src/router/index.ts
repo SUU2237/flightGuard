@@ -28,10 +28,6 @@ const routes: RouteRecordRaw[] = [
   },
 ];
 
-/**
- * Vue Router 實例
- * 使用 HTML5 History 模式 (createWebHistory)
- */
 const router = createRouter({
   //Hash 路由模式（網址帶 /#/）：確保在 GitHub Pages 上重新整理時不會觸發伺服器 404
   history: createWebHashHistory(import.meta.env.BASE_URL),

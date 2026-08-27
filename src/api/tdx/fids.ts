@@ -69,6 +69,8 @@ function resolveTripStatus(
   return raw.TripStatus ?? TripStatus.Normal;
 }
 
+//整理原始資料成 FidsFlight 物件
+//離站航班取出發時間（表定&實際）；到站航班取抵達時間（表定&實際）
 function mapFidsFlight(raw: FidsFlightRaw, direction: FlightDirection): FidsFlight {
   const scheduleTime =
     direction === FlightDirection.Departure ? raw.ScheduleDepartureTime : raw.ScheduleArrivalTime;
@@ -104,7 +106,7 @@ function buildODataFilter(params: FidsQueryParams): string | undefined {
 /**
  * 查詢指定機場的離站航班動態 (FIDSFlightDeparture)
  * 
- * param params FIDS 查詢參數，須包含 airportCode（機場代碼）
+ * params FIDS 查詢參數，須包含 airportCode（機場代碼）
  * returns 離站航班動態清單
  */
 export async function getFidsFlightDeparture(
@@ -125,7 +127,6 @@ export async function getFidsFlightDeparture(
       },
     },
   );
-  console.debug('[FIDS] 離站回傳筆數:', response.data.length);
   return response.data.map((raw) => mapFidsFlight(raw, FlightDirection.Departure));
 }
 
@@ -151,12 +152,12 @@ export async function getFidsFlightArrival(
       },
     },
   );
-  console.debug('[FIDS] 進站回傳筆數:', response.data.length);
   return response.data.map((raw) => mapFidsFlight(raw, FlightDirection.Arrival));
 }
 
 /**
  * 依航班號直接查詢航班動態（不限機場），適用於僅輸入「航班號」的搜尋情境
+ * 或是帶入航班詳情頁網址的搜尋情境
  * 同時查詢進站與離站端點並合併結果，交由呼叫端（composable）依需求篩選
  *
  * param flightNumber 航班號，如 "BR301"
@@ -181,6 +182,5 @@ export async function getFidsFlightByNumber(
     },
   });
 
-  console.debug('[FIDS] 依航班號回傳筆數:', response.data.length);
   return response.data.map((raw) => mapFidsFlight(raw, direction));
 }

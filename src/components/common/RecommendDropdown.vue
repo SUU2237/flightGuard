@@ -34,7 +34,6 @@ const emit = defineEmits<{
 
 /**
  * 處理項目點擊
- * 於 template 綁定時使用 @mousedown.prevent，避免點擊瞬間觸發輸入框 blur 導致選單提前收起
  */
 function handleSelect(item: T): void {
   emit('select', item);

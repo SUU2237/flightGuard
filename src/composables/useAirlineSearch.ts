@@ -19,13 +19,12 @@ const RECOMMENDED_AIRLINE_IATA_LIST = [
 
 /**
  * 航空公司搜尋輸入框互動邏輯 composable
- *
- * Focus / Blur / 打字三種狀態切換與前端關鍵字篩選邏輯皆共用 useEntitySearch，
- * 本檔案只負責提供航空公司特有的資料存取方式（store 搜尋方法、推薦清單、回填文字格式）
+ *（store 搜尋方法、推薦清單、回填文字格式）
  */
 export function useAirlineSearch() {
   const tdxStore = useTdxBaseDataStore();
 
+  //建立一整套專門給「航空公司搜尋輸入框」使用的響應式狀態與操作函式
   const {
     keyword,
     searchMode,

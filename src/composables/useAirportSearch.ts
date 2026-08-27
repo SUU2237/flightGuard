@@ -50,13 +50,12 @@ function isDomesticAirport(airport: TdxAirport): boolean {
 
 /**
  * 機場搜尋輸入框互動邏輯 composable
- *
- * 共用 Focus / Blur / 打字三種狀態切換與前端關鍵字篩選邏輯（見 useEntitySearch），
- * 本檔案只額外處理機場搜尋特有的「國外機場離站/進站語意反轉」標記與查詢代碼轉換
+ * 處理機場「國外機場離站/進站語意反轉」標記與查詢代碼轉換
  */
 export function useAirportSearch() {
   const tdxStore = useTdxBaseDataStore();
 
+  //建立一整套專門給「機場搜尋輸入框」使用的響應式狀態與操作函式
   const {
     keyword,
     searchMode,

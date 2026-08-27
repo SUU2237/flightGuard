@@ -11,6 +11,7 @@ import {
   type FidsFlight,
   type FlightState,
   type AircraftPosition,
+  type OpenSkyStateVector,
 } from '@/types';
 
 /**
@@ -76,14 +77,15 @@ export function useFlightTracking(flight: Ref<FidsFlight | null> | FidsFlight | 
   const isNetworkFailure = ref(false);
 
   /**
-   * 綜合 TDX 狀態與 OpenSky 結果判定飛機航行狀態
+   * 綜合 TDX 狀態與 OpenSky 結果判定飛機航行狀態（飛行中、地面滑行、抵達、未出發、未知）
+   * 只要 OpenSky 有回傳 state vector，都代表有真實座標可用
    */
   function resolveAirborneStatus(
     currentFlight: FidsFlight,
-    isAirborneOnOpenSky: boolean,
+    stateVector: OpenSkyStateVector | undefined,
   ): FlightAirborneStatus {
-    if (isAirborneOnOpenSky) {
-      return FlightAirborneStatus.InAir;
+    if (stateVector) {
+      return stateVector.onGround ? FlightAirborneStatus.OnGround : FlightAirborneStatus.InAir;
     }
     if (currentFlight.tripStatus === TripStatus.Arrived) {
       return FlightAirborneStatus.Landed;
@@ -138,14 +140,11 @@ export function useFlightTracking(flight: Ref<FidsFlight | null> | FidsFlight | 
 
     try {
       const callsign = resolveCallsign(currentFlight.airlineID, currentFlight.flightNumber);
-      console.log('[useFlightTracking] Callsign 轉換:', currentFlight.flightNumber, '->', callsign);
-      //呼號查詢成功且飛機未著地時，判定為 InAir
       const stateVector = callsign ? await findStateVectorByCallsign(callsign) : undefined;
-      const isAirborne = Boolean(stateVector && !stateVector.onGround);
-      const airborneStatus = resolveAirborneStatus(currentFlight, isAirborne);
+      const airborneStatus = resolveAirborneStatus(currentFlight, stateVector);
 
-      if (airborneStatus === FlightAirborneStatus.InAir && stateVector) {
-        // 飛航中：記錄真實數據與計算大圓航線
+      // 只要 OpenSky 有回傳 state vector（不論 onGround 與否），代表有真實座標可用，就應如實顯示
+      if (stateVector) {
         flightState.value = {
           icao24: stateVector.icao24,
           airborneStatus,
@@ -157,18 +156,22 @@ export function useFlightTracking(flight: Ref<FidsFlight | null> | FidsFlight | 
           updatedAt: Date.now(),
         };
 
-        const originCoord = getAirportCoordByIATA(currentFlight.departureAirportID);
-        const destCoord = getAirportCoordByIATA(currentFlight.arrivalAirportID);
-        
-        //生成大圓弧線點陣列
-        routeArc.value =
-          originCoord && destCoord
-            ? generateGreatCircleArc(originCoord.lat, originCoord.lng, destCoord.lat, destCoord.lng)
-            : [];
+        // 大圓航線僅在真實飛行中才計算，地面滑行時交由靜態表定航線顯示
+        if (airborneStatus === FlightAirborneStatus.InAir) {
+          const originCoord = getAirportCoordByIATA(currentFlight.departureAirportID);
+          const destCoord = getAirportCoordByIATA(currentFlight.arrivalAirportID);
+
+          routeArc.value =
+            originCoord && destCoord
+              ? generateGreatCircleArc(originCoord.lat, originCoord.lng, destCoord.lat, destCoord.lng)
+              : [];
+        } else {
+          routeArc.value = [];
+        }
       } else {
-        // 非飛航中：數據強制重設為 null
+        // OpenSky 查無對應資料：數據重設為 null
         flightState.value = {
-          icao24: stateVector?.icao24 ?? '',
+          icao24: '',
           airborneStatus,
           longitude: null,
           latitude: null,
@@ -180,7 +183,7 @@ export function useFlightTracking(flight: Ref<FidsFlight | null> | FidsFlight | 
         routeArc.value = [];
       }
     } catch (err) {
-      // 捕獲逾時與網路連線異常 (相容性最佳寫法，不依賴 axios 額外 import)
+      // 捕獲逾時與網路連線異常
       const errMessage = err instanceof Error ? err.message : String(err);
       const isTimeoutOrNetwork =
         errMessage.includes('timeout') || errMessage.includes('Network Error') || !navigator.onLine;
@@ -202,6 +205,18 @@ export function useFlightTracking(flight: Ref<FidsFlight | null> | FidsFlight | 
   const isInAir = computed(() => flightState.value?.airborneStatus === FlightAirborneStatus.InAir);
 
   /**
+   * 是否有可顯示的真實座標？
+   * 供 UI 判斷是否顯示即時位置/數據，取代單純依賴 isInAir 造成地面滑行資料被隱藏的問題
+   */
+  const hasLivePosition = computed(
+    () =>
+      flightState.value?.latitude !== null &&
+      flightState.value?.latitude !== undefined &&
+      flightState.value?.longitude !== null &&
+      flightState.value?.longitude !== undefined,
+  );
+
+  /**
    * 是否已飛出雷達涵蓋範圍 (已起飛、未到表定抵達時間但無 OpenSky 數據)
    */
   const isOutOfRadarCoverage = computed(() => {
@@ -210,17 +225,16 @@ export function useFlightTracking(flight: Ref<FidsFlight | null> | FidsFlight | 
     const currentFlight = unref(flight);
     if (!currentFlight || !flightState.value) return false;
 
+    // 只要有真實座標（含地面滑行），就不算飛出雷達涵蓋範圍
+    if (hasLivePosition.value) return false;
+
     const hasDeparted = Boolean(currentFlight.actualDepartureTime);
     const scheduledArrival = new Date(
       currentFlight.actualArrivalTime ?? currentFlight.scheduleArrivalTime,
     ).getTime();
     const notYetArrived = !Number.isNaN(scheduledArrival) && Date.now() < scheduledArrival + 30 * 60 * 1000;
 
-    return (
-      hasDeparted &&
-      notYetArrived &&
-      flightState.value.airborneStatus !== FlightAirborneStatus.InAir
-    );
+    return hasDeparted && notYetArrived;
   });
 
   // 自動追蹤生命週期與響應式監聽
@@ -243,6 +257,7 @@ export function useFlightTracking(flight: Ref<FidsFlight | null> | FidsFlight | 
     isLoading,
     error,
     isInAir,
+    hasLivePosition,
     isOutOfRadarCoverage,
     isNetworkFailure,
     trackFlight,

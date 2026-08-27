@@ -44,7 +44,7 @@ httpClient.interceptors.request.use(
  * Response 攔截器
  */
 httpClient.interceptors.response.use(
-  (response: AxiosResponse) => response,
+  (response: AxiosResponse) => {return response},
   (error: AxiosError | Error) => {
     let message = '未知錯誤，請稍後再試';
 

@@ -43,6 +43,8 @@ export interface OpenSkyStateVector {
 export enum FlightAirborneStatus {
   /** 目前確實在空中飛行中，顯示即時位置與飛行數據 */
   InAir = 'IN_AIR',
+  /** OpenSky 回報在地面（滑行/等待起飛/落地後滑行），但仍有真實座標可顯示 */
+  OnGround = 'ON_GROUND',
   /** 尚未出發，顯示 "--" */
   NotDeparted = 'NOT_DEPARTED',
   /** 已抵達（含已落地），顯示 "--" */

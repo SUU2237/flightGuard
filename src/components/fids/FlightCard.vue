@@ -13,17 +13,28 @@ import { formatToHourMinute } from '@/utils/dateTime';
 import { getTripStatusMeta } from '@/utils/tripStatusMeta';
 import InsuranceBadge from '@/components/fids/InsuranceBadge.vue';
 
-const props = defineProps<{
-  flight: FidsFlight;
-}>();
+const props = withDefaults(
+  defineProps<{
+    flight: FidsFlight;
+    /** 是否為批次選取模式；開啟時點擊卡片改為切換選取狀態，不再直接導頁 */
+    selectable?: boolean;
+    /** 批次選取模式下，本卡片目前是否已被選取 */
+    selected?: boolean;
+  }>(),
+  {
+    selectable: false,
+    selected: false,
+  },
+);
 
 const emit = defineEmits<{
   select: [flight: FidsFlight];
+  'toggle-select': [flight: FidsFlight];
 }>();
 
 const tdxStore = useTdxBaseDataStore();
 
-/** 不便險理賠資格判定（傳入單一航班，非 ref 亦可，內部會自動 unref） */
+/** 不便險理賠資格判定（傳入單一航班） */
 const { eligibility } = useInsuranceCheck(props.flight);
 
 /** 航空公司顯示名稱（優先中文名，查無則退回原始 IATA 代碼） */
@@ -66,7 +77,11 @@ const actualTimeValue = computed(() =>
 );
 
 function handleClick(): void {
-  emit('select', props.flight);
+  if (props.selectable) {
+    emit('toggle-select', props.flight);
+  } else {
+    emit('select', props.flight);
+  }
 }
 </script>
 
@@ -74,20 +89,43 @@ function handleClick(): void {
   <!-- 取消理賠用紅色系、延誤理賠用黃色系 -->
   <div
     class="flex cursor-pointer flex-col rounded-xl border p-4 shadow-sm transition hover:shadow-md"
-    :class="
+    :class="[
       eligibility?.reasonType === InsuranceReasonType.Cancelled
         ? 'border-2 border-red-400 bg-red-50/60 hover:border-red-500'
         : eligibility?.reasonType === InsuranceReasonType.DelayOver4Hours
           ? 'border-2 border-amber-400 bg-amber-50/60 hover:border-amber-500'
-          : 'border-gray-200 bg-white hover:border-blue-300'
-    "
+          : 'border-gray-200 bg-white hover:border-blue-300',
+      selectable && selected ? 'ring-2 ring-blue-500 ring-offset-1' : '',
+    ]"
     @click="handleClick"
   >
-    <!-- 卡片頭部：航空公司 / 航班號 / TripStatus -->
+    <!-- 卡片頭部：批次選取 Checkbox / 航空公司 / 航班號 / TripStatus -->
     <div class="flex min-h-52px items-start justify-between gap-2">
-      <div class="min-w-0 flex-1">
-        <p class="truncate text-sm text-gray-400" :title="airlineName">{{ airlineName }}</p>
-        <p class="text-lg font-semibold text-gray-800">{{ flight.flightNumber }}</p>
+      <div class="flex min-w-0 flex-1 items-start gap-2">
+        <!-- 批次選取模式 Checkbox -->
+        <div
+          v-if="selectable"
+          class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition"
+          :class="selected ? 'border-blue-600 bg-blue-600' : 'border-gray-300 bg-white'"
+        >
+          <svg
+            v-if="selected"
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-3.5 w-3.5 text-white"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+          >
+            <path
+              fill-rule="evenodd"
+              d="M16.704 5.29a1 1 0 0 1 .006 1.414l-7.5 7.6a1 1 0 0 1-1.42.006l-3.5-3.5a1 1 0 1 1 1.414-1.414l2.796 2.796 6.79-6.888a1 1 0 0 1 1.414-.014Z"
+              clip-rule="evenodd"
+            />
+          </svg>
+        </div>
+        <div class="min-w-0 flex-1">
+          <p class="truncate text-sm text-gray-400" :title="airlineName">{{ airlineName }}</p>
+          <p class="text-lg font-semibold text-gray-800">{{ flight.airlineID }}{{ flight.flightNumber }}</p>
+        </div>
       </div>
       <span
         class="shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium"

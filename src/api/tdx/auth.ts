@@ -37,6 +37,7 @@ async function requestNewToken(): Promise<TdxAuthToken> {
     );
   }
 
+  //TDX 認證伺服器規定只接收表單格式（URL-encoded）
   const params = new URLSearchParams();
   params.append('grant_type', 'client_credentials');
   params.append('client_id', clientId);
@@ -74,6 +75,7 @@ export async function fetchToken(): Promise<string> {
         throw new Error('TDX 回傳的 Token 為空值');
       }
 
+      //更新暫存
       tokenCache.accessToken = tokenData.access_token;
       tokenCache.expiresAt = Date.now() + tokenData.expires_in * 1000;
 

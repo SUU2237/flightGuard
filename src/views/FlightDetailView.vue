@@ -13,9 +13,10 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { getFidsFlightByNumber } from '@/api/tdx/fids';
 import { useTdxBaseDataStore } from '@/stores/tdxBaseData';
+import { useFlightCacheStore } from '@/stores/flightCache';
 import { useInsuranceCheck } from '@/composables/useInsuranceCheck';
 import { useFlightTracking } from '@/composables/useFlightTracking';
-import { FlightDirection, type FidsFlight } from '@/types';
+import { FlightDirection, InsuranceReasonType, type FidsFlight } from '@/types';
 import { formatToFullDateTime } from '@/utils/dateTime';
 import { getTripStatusMeta } from '@/utils/tripStatusMeta';
 import InsuranceBadge from '@/components/fids/InsuranceBadge.vue';
@@ -25,6 +26,7 @@ import { nextTick, useTemplateRef } from 'vue';
 const route = useRoute();
 const router = useRouter();
 const tdxStore = useTdxBaseDataStore();
+const flightCacheStore = useFlightCacheStore();
 
 /** 查詢中狀態 */
 const isLoading = ref(true);
@@ -77,6 +79,7 @@ function isSameLocalDate(isoString: string, dateStr: string): boolean {
 }
 
 /**
+ * 當沒有快取時（例如使用者手動重整網頁或貼網址進來）：
  * 依路由參數重新查詢並比對出正確的單一航班資料
  * 同時查詢離站與進站端點，因無法預先得知該航班原始查詢方向
  */
@@ -134,18 +137,41 @@ async function loadFlightDetail(): Promise<void> {
   }
 }
 
+/**
+ * 嘗試從 SearchView 導頁時暫存的資料直接取得航班，命中則跳過 TDX API 呼叫
+ * 僅在直接輸入網址或重新整理（暫存不存在）時，才退回呼叫 loadFlightDetail()
+ */
+async function loadFromCacheOrFetch(): Promise<void> {
+  //從當前的網址中，抓出航班專屬的 ID 參數
+  const idParam = route.params.id as string;
+  const cached = flightCacheStore.consumeFlight(idParam);
+
+  if (cached) {
+    flight.value = cached;
+    isLoading.value = false;
+    error.value = null;
+
+    await nextTick();
+    flightMapRef.value?.invalidateMapSize();
+    return;
+  }
+
+  await loadFlightDetail();
+}
+
 onMounted(() => {
   if (!tdxStore.isInitialized) {
     void tdxStore.initialize();
   }
-  void loadFlightDetail();
+  void loadFromCacheOrFetch();
 });
 
 /** 不便險理賠資格判定 */
 const { eligibility } = useInsuranceCheck(flight);
 
-/** OpenSky 即時追蹤狀態 */
-const { isInAir, flightState, isOutOfRadarCoverage } = useFlightTracking(flight);
+/** OpenSky 即時追蹤狀態，於此統一呼叫、往下傳給 FlightMap，避免重複發送 OpenSky 請求 */
+const { isInAir, hasLivePosition, flightState, routeArc, isLoading: isTrackingLoading, error: trackingError, isOutOfRadarCoverage } =
+  useFlightTracking(flight);
 
 // 【診斷】確認 OpenSky 查詢結果是否真的有資料，若 flightState 持續為 null
 // 或 airborneStatus 非 IN_AIR，代表該航班目前查無 OpenSky 對應飛機（可能呼號轉換失敗或飛機不在空中）
@@ -190,7 +216,7 @@ function goBackToSearch(): void {
   <div class="min-h-screen bg-gray-50 p-4 md:p-6">
     <button
       type="button"
-      class="mb-4 inline-flex items-center gap-1 text-sm font-medium text-blue-500 hover:underline"
+      class="mb-4 inline-flex items-center gap-1 text-sm font-medium text-blue-500 hover:underline cursor-pointer"
       @click="goBackToSearch"
     >
       ← 返回搜尋列表
@@ -225,7 +251,7 @@ function goBackToSearch(): void {
         <div class="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p class="text-sm text-gray-400">{{ airlineName }}</p>
-            <h1 class="text-2xl font-bold text-gray-800">{{ flight.flightNumber }}</h1>
+            <h1 class="text-2xl font-bold text-gray-800">{{ flight.airlineID }}{{ flight.flightNumber }}</h1>
           </div>
           <span class="rounded-full px-4 py-1.5 text-sm font-medium" :class="tripStatusMeta?.badgeClass">
             {{ tripStatusMeta?.label }}
@@ -255,13 +281,9 @@ function goBackToSearch(): void {
           </div>
         </div>
 
-       <div
-        v-if="hasDepartureTime || hasArrivalTime"
-        class="mt-6 grid grid-cols-1 gap-4"
-        :class="hasDepartureTime && hasArrivalTime ? 'sm:grid-cols-2' : 'sm:grid-cols-1'"
-      > 
         <!-- 表定/實際時間對照表 -->
       <div
+        v-if="hasDepartureTime || hasArrivalTime"
         class="mt-6 grid grid-cols-1 gap-4"
         :class="hasDepartureTime && hasArrivalTime ? 'sm:grid-cols-2' : 'sm:grid-cols-1'"
       >
@@ -296,9 +318,8 @@ function goBackToSearch(): void {
             </p>
           </div>
         </div>
-        </div>
       </div>
-      </div>
+    </div>
 
     <!-- 左：飛行即時數據卡 + 右：不便險理賠資格分析卡 -->
     <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -309,40 +330,43 @@ function goBackToSearch(): void {
         <div v-if="isOutOfRadarCoverage" class="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-600">
           目前航班已飛離陸地接收站範圍，OpenSky 為地面接收站網路，跨洋或偏遠空域可能暫時無法回報即時位置
         </div>
-        <div v-else-if="!isInAir" class="mb-3 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-400">
-          僅飛航中的航班顯示即時位置與飛行數據
+        <div v-else-if="!hasLivePosition" class="mb-3 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-400">
+          僅飛航中或地面滑行的航班顯示即時位置與飛行數據
+        </div>
+        <div v-else-if="!isInAir" class="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-600">
+          飛機目前於地面滑行，以下為即時位置數據
         </div>
 
-        <!-- 僅飛航中顯示即時數據，其餘一律 "--"-->
+        <!-- 有真實座標（飛行中或地面滑行）才顯示即時數據，其餘一律 "--"-->
         <div class="grid grid-cols-2 gap-3 text-sm">
           <div class="rounded-lg bg-gray-50 p-3">
             <p class="text-xs text-gray-400">緯度</p>
             <p class="font-medium text-gray-700">
-              {{ isInAir && flightState?.latitude !== null ? flightState?.latitude?.toFixed(4) : '--' }}
+              {{ hasLivePosition && flightState?.latitude !== null ? flightState?.latitude?.toFixed(4) : '--' }}
             </p>
           </div>
           <div class="rounded-lg bg-gray-50 p-3">
             <p class="text-xs text-gray-400">經度</p>
             <p class="font-medium text-gray-700">
-              {{ isInAir && flightState?.longitude !== null ? flightState?.longitude?.toFixed(4) : '--' }}
+              {{ hasLivePosition && flightState?.longitude !== null ? flightState?.longitude?.toFixed(4) : '--' }}
             </p>
           </div>
           <div class="rounded-lg bg-gray-50 p-3">
             <p class="text-xs text-gray-400">速度</p>
             <p class="font-medium text-gray-700">
-              {{ isInAir && flightState?.speedKmh !== null ? `${flightState?.speedKmh} km/h` : '--' }}
+              {{ hasLivePosition && flightState?.speedKmh !== null ? `${flightState?.speedKmh} km/h` : '--' }}
             </p>
           </div>
           <div class="rounded-lg bg-gray-50 p-3">
             <p class="text-xs text-gray-400">高度</p>
             <p class="font-medium text-gray-700">
-              {{ isInAir && flightState?.altitude !== null ? `${flightState?.altitude} m` : '--' }}
+              {{ hasLivePosition && flightState?.altitude !== null ? `${flightState?.altitude} m` : '--' }}
             </p>
           </div>
           <div class="col-span-2 rounded-lg bg-gray-50 p-3">
             <p class="text-xs text-gray-400">航向</p>
             <p class="font-medium text-gray-700">
-              {{ isInAir && flightState?.heading !== null ? `${flightState?.heading}°` : '--' }}
+              {{ hasLivePosition && flightState?.heading !== null ? `${flightState?.heading}°` : '--' }}
             </p>
           </div>
         </div>
@@ -352,7 +376,13 @@ function goBackToSearch(): void {
       <!-- 不便險理賠資格分析卡 -->
       <div
         class="flex flex-col rounded-xl border p-4 shadow-sm transition"
-        :class="tripStatusMeta?.accentBorderClass"
+        :class="
+          eligibility?.reasonType === InsuranceReasonType.Cancelled
+            ? 'border-2 border-red-400 bg-red-50/60'
+            : eligibility?.reasonType === InsuranceReasonType.DelayOver4Hours
+              ? 'border-2 border-amber-400 bg-amber-50/60'
+              : 'border-gray-200 bg-white'
+        "
       >
         <div class="mb-3 flex items-center justify-between">
           <h2 class="text-base font-semibold text-gray-800">不便險理賠資格分析</h2>
@@ -389,9 +419,18 @@ function goBackToSearch(): void {
       </div>
     </div>
       <!-- 即時飛行軌跡地圖 -->
-        <div v-if="flight" class="h-125 w-full overflow-hidden rounded-2xl shadow-md">
-          <h2 class="sr-only">航線與即時位置</h2>
-          <FlightMap ref="flightMapRef" :flight="flight" />
+        <div v-if="flight" class="h-125 w-full overflow-hidden rounded-2xl ">
+          <h2 class="mb-3 text-base font-semibold text-gray-700">航線與即時位置</h2>
+          <FlightMap
+            ref="flightMapRef"
+            :flight="flight"
+            :flight-state="flightState"
+            :route-arc="routeArc"
+            :is-loading="isTrackingLoading"
+            :error="trackingError"
+            :is-in-air="isInAir"
+            :has-live-position="hasLivePosition"
+          />
         </div>
     </div>
   </div>

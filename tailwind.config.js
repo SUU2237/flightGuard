@@ -2,7 +2,7 @@
 
 /**
  * Tailwind CSS v4 選用設定檔
- * v4 預設會自動掃描專案檔案，此設定檔僅用於明確指定掃描範圍或擴充主題
+ * 告訴 Tailwind CSS 去掃描哪些檔案並產生對應的樣式
  */
 /** @type {import('tailwindcss').Config} */
 export default {

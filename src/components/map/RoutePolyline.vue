@@ -56,9 +56,11 @@ function drawRoute(): void {
   if (!props.map || props.points.length < 2) {
     return;
   }
-  //Leaflet 規定要二維陣列
+  //將前端自訂的物件陣列（[{ lat: 25.0, lng: 121.5 }, ...]
+  //轉換成 Leaflet 規定看得懂的座標陣列格式（[[25.0, 121.5], ...]）
   const latLngs: L.LatLngExpression[] = props.points.map((p) => [p.lat, p.lng]);
 
+  //依據點陣列&顏色參數等等生成折線圖層，最後再將這條畫好的折線放到map上
   polylineLayer.value = L.polyline(latLngs, {
     color: props.color,
     weight: props.weight,

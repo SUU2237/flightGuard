@@ -7,7 +7,7 @@ import { FlightDirection, type FidsFlight, type InsuranceEligibility } from '@/t
 /**
  * 不便險理賠資格判定 composable
  *
- * 接收單一 FidsFlight 航班資料（可為 ref 或原始物件），
+ * 接收單一 FidsFlight 航班資料，
  * 依查詢方向（進站/離站）決定應使用「表定/實際出發時間」或「表定/實際抵達時間」進行計算，
  * 呼叫 utils/insuranceRule.ts 純邏輯函式產生完整判定結果
  */

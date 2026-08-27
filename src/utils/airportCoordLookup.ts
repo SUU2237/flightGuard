@@ -22,9 +22,6 @@ const airportsData = rawAirportsData as Record<string, RawAirportEntry>;
 
 /**
  * 依 IATA 三碼查找機場經緯度座標
- *
- * 注意：JSON 的 key 並非保證為 IATA 碼（部分為 ICAO 或內部代碼），
- * 故不直接用 key 查找，改為遍歷 value 陣列比對 iata 欄位，確保查找結果正確
  */
 export function getAirportCoordByIATA(iataCode: string): { lat: number; lng: number } | null {
   const target = iataCode.trim().toUpperCase();

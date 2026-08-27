@@ -10,23 +10,92 @@
  * onMounted 時呼叫 useTdxBaseDataStore.initialize() 預先載入機場/航空公司全量快取，
  * 確保後續搜尋互動（Array.filter 前端篩選）有資料可用
  */
-import { ref, onMounted, shallowRef, computed } from 'vue';
+import { ref, onMounted, shallowRef, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useTdxBaseDataStore } from '@/stores/tdxBaseData';
+import { useFlightCacheStore } from '@/stores/flightCache';
+import { useClaimWorkspaceStore } from '@/stores/claimWorkspace';
 import { useFidsData } from '@/composables/useFidsData';
 import SearchHeader from '@/components/search/SearchHeader.vue';
 import FlightList from '@/components/fids/FlightList.vue';
 import { FlightDirection, type FidsFlight } from '@/types';
 import { getTodayDateString } from '@/utils/dateTime';
 import { checkInsuranceEligibility } from '@/utils/insuranceRule';
+import { getFlightId } from '@/utils/flightId';
 import FlightCard from '@/components/fids/FlightCard.vue';
 
 const router = useRouter();
 const tdxStore = useTdxBaseDataStore();
+const flightCacheStore = useFlightCacheStore();
+const claimStore = useClaimWorkspaceStore();
 const fids = useFidsData();
 
 /** 抽屜開關狀態 */
 const isInsuranceDrawerOpen = ref(false);
+
+/** 是否開啟批次選取模式 */
+const isSelectionMode = ref(false);
+/** 目前已選取的航班 id 清單（id 由 utils/flightId.ts 產生） */
+const selectedFlightIds = ref<Set<string>>(new Set());
+/** 目前已選取的航班筆數 */
+const selectedCount = computed(() => selectedFlightIds.value.size);
+/** 目前查詢結果是否已全數選取 */
+const isAllSelected = computed(
+  () => fids.flightList.value.length > 0 && selectedCount.value === fids.flightList.value.length,
+);
+
+// 每次查詢結果更新，先前的選取狀態即失去意義，一律清空避免誤操作到已不在清單中的航班
+watch(
+  () => fids.flightList.value,
+  () => {
+    selectedFlightIds.value = new Set();
+  },
+);
+
+// 理賠工作台開啟時，自動收起理賠特搜抽屜，避免兩個抽屜同時顯示互相遮擋
+watch(
+  () => claimStore.isOpen,
+  (open) => {
+    if (open) {
+      isInsuranceDrawerOpen.value = false;
+    }
+  },
+);
+
+/** 切換批次選取模式；關閉時同步清空已選取清單 */
+function toggleSelectionMode(): void {
+  isSelectionMode.value = !isSelectionMode.value;
+  if (!isSelectionMode.value) {
+    selectedFlightIds.value = new Set();
+  }
+}
+
+/** 切換單筆航班的選取狀態 */
+function toggleFlightSelection(flight: FidsFlight): void {
+  const id = getFlightId(flight);
+  const next = new Set(selectedFlightIds.value);
+  if (next.has(id)) {
+    next.delete(id);
+  } else {
+    next.add(id);
+  }
+  selectedFlightIds.value = next;
+}
+
+/** 全選／取消全選目前查詢結果中的所有航班 */
+function toggleSelectAll(): void {
+  selectedFlightIds.value = isAllSelected.value
+    ? new Set()
+    : new Set(fids.flightList.value.map((f) => getFlightId(f)));
+}
+
+/** 將已選取的航班批次加入理賠工作台，完成後清空選取並關閉選取模式 */
+function addSelectedToWorkspace(): void {
+  const selectedFlights = fids.flightList.value.filter((f) => selectedFlightIds.value.has(getFlightId(f)));
+  claimStore.batchAddFlights(selectedFlights);
+  selectedFlightIds.value = new Set();
+  isSelectionMode.value = false;
+}
 
 /**
  * 依據班機是進站還是出站，挑選出對應的表定/實際時間，再丟給 checkInsuranceEligibility 函式計算
@@ -53,9 +122,12 @@ const eligibleFlights = computed(() =>
 /** 符合理賠的航班數量，用於顯示在 FAB 上 */
 const eligibleCount = computed(() => eligibleFlights.value.length);
 
-/** 切換右側抽屜開關 */
+/** 切換右側抽屜開關；開啟時同步收起理賠工作台，避免兩個抽屜重疊撞車 */
 function toggleInsuranceDrawer(): void {
   isInsuranceDrawerOpen.value = !isInsuranceDrawerOpen.value;
+  if (isInsuranceDrawerOpen.value) {
+    claimStore.closeWorkspace();
+  }
 }
 
 /** 抽屜內卡片點擊：關閉抽屜並導航至航班詳情頁 */
@@ -118,15 +190,17 @@ function buildFlightRouteId(flight: FidsFlight): string {
 /**
  * 處理航班卡片點擊事件
  * 同時更新地圖聚焦對象，並導頁至該航班的詳細資訊頁面
- *
- * @param flight 被點擊的航班資料
  */
 function handleFlightSelect(flight: FidsFlight): void {
   selectedFlight.value = flight;
 
+  const routeId = buildFlightRouteId(flight);
+  // 暫存已查得的 flight 物件，讓 FlightDetailView 可直接讀取，避免轉頁後重複呼叫 TDX API
+  flightCacheStore.setFlight(routeId, flight);
+
   void router.push({
     name: 'flight-detail',
-    params: { id: buildFlightRouteId(flight) },
+    params: { id: routeId },
   });
 }
 </script>
@@ -143,15 +217,57 @@ function handleFlightSelect(flight: FidsFlight): void {
             （共 {{ fids.flightList.value.length }} 筆）
           </span>
         </h2>
+        <button
+          v-if="fids.flightList.value.length > 0"
+          type="button"
+          class="cursor-pointer rounded-lg border px-3 py-1.5 text-sm font-medium transition"
+          :class="
+            isSelectionMode
+              ? 'border-blue-500 bg-blue-50 text-blue-600'
+              : 'border-gray-200 bg-white text-gray-600 hover:border-blue-300'
+          "
+          @click="toggleSelectionMode"
+        >
+          {{ isSelectionMode ? '取消批次選取' : '批次選取' }}
+        </button>
       </div>
 
       <FlightList
         :flights="fids.flightList.value"
         :is-loading="fids.isLoading.value"
         :error="fids.error.value"
+        :selectable="isSelectionMode"
+        :selected-ids="selectedFlightIds"
         @select="handleFlightSelect"
+        @toggle-select="toggleFlightSelection"
       />
     </div>
+
+    <!-- 批次選取浮動操作列 -->
+    <Transition name="fade">
+      <div
+        v-if="selectedCount > 0"
+        class="fixed bottom-6 left-1/2 z-1350 flex w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 items-center justify-between gap-3 rounded-xl bg-gray-900/95 px-4 py-3 text-white shadow-xl md:w-auto"
+      >
+        <span class="whitespace-nowrap text-sm font-medium">已選取 {{ selectedCount }} 筆</span>
+        <div class="flex items-center gap-2">
+          <button
+            type="button"
+            class="cursor-pointer whitespace-nowrap rounded-lg border border-white/30 px-3 py-1.5 text-sm font-medium transition hover:bg-white/10"
+            @click="toggleSelectAll"
+          >
+            {{ isAllSelected ? '取消全選' : '全選' }}
+          </button>
+          <button
+            type="button"
+            class="cursor-pointer whitespace-nowrap rounded-lg bg-amber-500 px-3 py-1.5 text-sm font-semibold transition hover:bg-amber-600"
+            @click="addSelectedToWorkspace"
+          >
+            加入待處理工作台
+          </button>
+        </div>
+      </div>
+    </Transition>
 
 <!-- 理賠一覽 FAB -->
 <button
@@ -212,14 +328,24 @@ function handleFlightSelect(flight: FidsFlight): void {
         <p class="text-sm text-gray-400">請先於上方進行搜尋，或調整篩選條件</p>
       </div>
 
-      <div v-else class="space-y-3">
-        <FlightCard
-          v-for="flight in eligibleFlights"
-          :key="`${flight.flightNumber}-${flight.scheduleDepartureTime}`"
-          :flight="flight"
-          @select="handleDrawerFlightSelect"
-        />
-      </div>
+      <template v-else>
+        <button
+          type="button"
+          class="mb-3 w-full cursor-pointer rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-600"
+          @click="claimStore.batchAddFlights(eligibleFlights)"
+        >
+          一鍵將篩選出的 {{ eligibleCount }} 筆延誤航班匯入工作台
+        </button>
+
+        <div class="space-y-3">
+          <FlightCard
+            v-for="flight in eligibleFlights"
+            :key="getFlightId(flight)"
+            :flight="flight"
+            @select="handleDrawerFlightSelect"
+          />
+        </div>
+      </template>
     </div>
   </div>
 </Transition>

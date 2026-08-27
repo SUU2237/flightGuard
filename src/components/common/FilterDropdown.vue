@@ -51,6 +51,7 @@ function splitByKeyword(label: string): { text: string; matched: boolean }[] {
   const trimmed = props.keyword.trim();
   if (!trimmed) return [{ text: label, matched: false }];
 
+  //i（ignoreCase）：忽略大小寫；g（global）：全部都做比對
   const pattern = new RegExp(`(${escapeRegExp(trimmed)})`, 'ig');
   const parts = label.split(pattern);
 

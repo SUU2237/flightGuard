@@ -10,23 +10,16 @@ const OPEN_SKY_BASE_URL = 'https://opensky-network.org/api';
 
 /**
  * OpenSky /states/all 回傳格式
- * states 為陣列的陣列，每個內層陣列依固定索引順序代表不同飛行狀態欄位
- * 詳見官方文件：https://openskynetwork.github.io/opensky-api/rest.html
  */
 interface OpenSkyStatesResponse {
   /** 伺服器產生此資料的 Unix 時間戳（秒） */
   time: number;
-  /** 狀態向量原始陣列清單，單一飛機可能無資料而為 null */
+  /** 所有飛機的二維陣列清單，無資料時 null */
   states: OpenSkyRawStateArray[] | null;
 }
 
 /**
  * OpenSky 單一飛機狀態向量原始陣列型別
- * 索引對應：
- * 0: icao24, 1: callsign, 2: origin_country, 3: time_position, 4: last_contact,
- * 5: longitude, 6: latitude, 7: baro_altitude, 8: on_ground, 9: velocity,
- * 10: true_track, 11: vertical_rate, 12: sensors, 13: geo_altitude,
- * 14: squawk, 15: spi, 16: position_source
  */
 type OpenSkyRawStateArray = [
   string, // 0 icao24
@@ -74,22 +67,16 @@ function mapStateVector(raw: OpenSkyRawStateArray): OpenSkyStateVector {
 }
 
 /**
- * 呼叫 OpenSky Network API 取得目前全球（或指定範圍）飛機狀態向量
+ * 呼叫 OpenSky Network API 取得目前全球飛機狀態向量
  *
  * param 選填 ICAO24 位址清單，不帶則查詢全部
  * returns 轉換後的狀態向量清單
  */
-export async function getAllStateVectors(
-  icao24List?: string[],
-): Promise<OpenSkyStateVector[]> {
+export async function getAllStateVectors(): Promise<OpenSkyStateVector[]> {
   try {
     const response = await axios.get<OpenSkyStatesResponse>(
       `${OPEN_SKY_BASE_URL}/states/all`,
       {
-        params: icao24List?.length ? { icao24: icao24List } : undefined,
-        paramsSerializer: {
-          indexes: null,
-        },
         timeout: 15000,
       },
     );

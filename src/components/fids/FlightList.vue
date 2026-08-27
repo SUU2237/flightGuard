@@ -7,8 +7,10 @@
  * 使用者點擊卡片時，向父層 emit "select" 事件並附帶被點擊的航班資料
  */
 import type { FidsFlight } from '@/types';
+import { getFlightId } from '@/utils/flightId';
 import FlightCard from './FlightCard.vue';
 
+//為有加上問號 ? 的可選屬性提供後備預設值
 withDefaults(
   //接受父層傳來的 props
   defineProps<{
@@ -18,20 +20,32 @@ withDefaults(
     isLoading?: boolean;
     /** 查詢錯誤訊息，無錯誤時為 null */
     error?: string | null;
+    /** 是否為批次選取模式 */
+    selectable?: boolean;
+    /** 批次選取模式下，目前已選取的航班 id 清單 */
+    selectedIds?: Set<string>;
   }>(),
   {
     isLoading: false,
     error: null,
+    selectable: false,
+    selectedIds: () => new Set<string>(),
   },
 );
 
 const emit = defineEmits<{
-  /** 使用者點擊清單中某張航班卡片 */
+  /** 使用者點擊清單中某張航班卡片（非選取模式） */
   select: [flight: FidsFlight];
+  /** 使用者於批次選取模式下切換某張卡片的選取狀態 */
+  'toggle-select': [flight: FidsFlight];
 }>();
 
 function handleSelect(flight: FidsFlight): void {
   emit('select', flight);
+}
+
+function handleToggleSelect(flight: FidsFlight): void {
+  emit('toggle-select', flight);
 }
 </script>
 
@@ -88,9 +102,12 @@ function handleSelect(flight: FidsFlight): void {
     <div v-else class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
       <FlightCard
         v-for="flight in flights"
-        :key="`${flight.flightNumber}-${flight.scheduleDepartureTime}`"
+        :key="getFlightId(flight)"
         :flight="flight"
+        :selectable="selectable"
+        :selected="selectedIds.has(getFlightId(flight))"
         @select="handleSelect"
+        @toggle-select="handleToggleSelect"
       />
     </div>
   </div>
