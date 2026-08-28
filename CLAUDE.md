@@ -16,9 +16,12 @@ npm run build         # 型別檢查（vue-tsc --build）+ 正式建置
 npm run build-only    # 略過型別檢查，僅執行正式建置
 npm run type-check    # 僅執行 vue-tsc --build 型別檢查
 npm run preview       # 本機預覽正式建置後的成品
+npm run test          # 執行 Vitest 單元測試（vitest run）
 ```
 
-本專案**沒有**測試套件、也**沒有**設定 lint 指令 —— 不要假設 `npm test` 或 `npm run lint` 存在。修改程式碼後，請以 `npm run type-check` 作為主要的正確性驗證手段。
+本專案**沒有**設定 lint 指令 —— 不要假設 `npm run lint` 存在。修改程式碼後，請以 `npm run type-check` 與 `npm run test` 作為主要的正確性驗證手段。
+
+單元測試以 Vitest 撰寫，環境為 `jsdom`，設定於 `vite.config.ts` 的 `test` 欄位；測試檔一律放在對應原始碼目錄下的 `__tests__/` 資料夾（如 `src/utils/__tests__/insuranceRule.spec.ts`），此路徑已被 `tsconfig.app.json` 排除於 `vue-tsc --build` 型別檢查範圍外。目前涵蓋三大核心運算模組：`utils/insuranceRule.ts`（理賠決策）、`api/tdx/fids.ts` 的 `resolveTripStatus`（狀態解析，該函式與 `FidsFlightRaw` 型別已 `export` 供測試直接呼叫）、`stores/claimWorkspace.ts`（工作台狀態機，測試時需以 `setActivePinia(createPinia())` 重建乾淨的 store 實例並 `localStorage.clear()`）。
 
 需要在專案根目錄建立 `.env` 檔，設定 `VITE_TDX_CLIENT_ID` 與 `VITE_TDX_CLIENT_SECRET`（TDX OAuth2 client-credentials 認證資訊）才能本機開發；CI 建置／部署時（`.github/workflows/deploy.yml`，push 到 `master` 時觸發，將 `dist/` 部署至 GitHub Pages）則改由 GitHub Actions Secrets 注入。
 

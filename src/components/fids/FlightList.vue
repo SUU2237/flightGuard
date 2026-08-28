@@ -6,12 +6,13 @@
  * 負責迴圈渲染 FlightCard
  * 使用者點擊卡片時，向父層 emit "select" 事件並附帶被點擊的航班資料
  */
-import type { FidsFlight } from '@/types';
+import { computed } from 'vue';
+import { FlightDirection, type FidsFlight } from '@/types';
 import { getFlightId } from '@/utils/flightId';
 import FlightCard from './FlightCard.vue';
 
 //為有加上問號 ? 的可選屬性提供後備預設值
-withDefaults(
+const props = withDefaults(
   //接受父層傳來的 props
   defineProps<{
     /** 航班清單資料 */
@@ -24,12 +25,18 @@ withDefaults(
     selectable?: boolean;
     /** 批次選取模式下，目前已選取的航班 id 清單 */
     selectedIds?: Set<string>;
+    /** 是否已執行過至少一次查詢；true 時查無結果才顯示「切換方向」引導按鈕 */
+    hasSearched?: boolean;
+    /** 當前查詢方向，用於推算「切換至另一方向」按鈕文字 */
+    direction?: FlightDirection | null;
   }>(),
   {
     isLoading: false,
     error: null,
     selectable: false,
     selectedIds: () => new Set<string>(),
+    hasSearched: false,
+    direction: null,
   },
 );
 
@@ -38,7 +45,20 @@ const emit = defineEmits<{
   select: [flight: FidsFlight];
   /** 使用者於批次選取模式下切換某張卡片的選取狀態 */
   'toggle-select': [flight: FidsFlight];
+  /** 查無結果時，使用者點擊「切換至另一方向查詢」 */
+  'switch-direction': [];
 }>();
+
+/** 另一個查詢方向的中文標籤，用於空狀態引導按鈕文字 */
+const oppositeDirectionLabel = computed(() => {
+  if (props.direction === FlightDirection.Departure) return '進站';
+  if (props.direction === FlightDirection.Arrival) return '離站';
+  return null;
+});
+
+function handleSwitchDirection(): void {
+  emit('switch-direction');
+}
 
 function handleSelect(flight: FidsFlight): void {
   emit('select', flight);
@@ -94,8 +114,24 @@ function handleToggleSelect(flight: FidsFlight): void {
       v-else-if="flights.length === 0"
       class="flex flex-col items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 px-6 py-16 text-center"
     >
-      <p class="font-medium text-gray-500">尚無符合條件的航班</p>
-      <p class="text-sm text-gray-400">請調整搜尋條件後重新查詢</p>
+      <p class="font-medium text-gray-500">
+        {{ hasSearched ? '查無符合條件的航班' : '尚無符合條件的航班' }}
+      </p>
+      <p class="text-sm text-gray-400">
+        {{
+          hasSearched && oppositeDirectionLabel
+            ? `請調整搜尋條件後重新查詢，或試試切換至「${oppositeDirectionLabel}」查詢`
+            : '請調整搜尋條件後重新查詢'
+        }}
+      </p>
+      <button
+        v-if="hasSearched && oppositeDirectionLabel"
+        type="button"
+        class="cursor-pointer rounded-lg border border-blue-300 bg-white px-4 py-2 text-sm font-medium text-blue-600 transition hover:bg-blue-50"
+        @click="handleSwitchDirection"
+      >
+        改查「{{ oppositeDirectionLabel }}」航班
+      </button>
     </div>
 
     <!-- 正常情況下：航班卡片清單 -->

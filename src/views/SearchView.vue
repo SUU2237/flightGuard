@@ -203,6 +203,18 @@ function handleFlightSelect(flight: FidsFlight): void {
     params: { id: routeId },
   });
 }
+
+/**
+ * 查無結果時，讓使用者一鍵切換至另一方向（進站/離站）重新查詢
+ * 避免使用者手動改設定後才發現漏按查詢，重複觸發 API 造成 429
+ */
+function handleSwitchDirection(): void {
+  fids.direction.value =
+    fids.direction.value === FlightDirection.Departure
+      ? FlightDirection.Arrival
+      : FlightDirection.Departure;
+  void fids.search();
+}
 </script>
 
 <template>
@@ -238,8 +250,11 @@ function handleFlightSelect(flight: FidsFlight): void {
         :error="fids.error.value"
         :selectable="isSelectionMode"
         :selected-ids="selectedFlightIds"
+        :has-searched="fids.hasSearched.value"
+        :direction="fids.direction.value"
         @select="handleFlightSelect"
         @toggle-select="toggleFlightSelection"
+        @switch-direction="handleSwitchDirection"
       />
     </div>
 
@@ -272,7 +287,8 @@ function handleFlightSelect(flight: FidsFlight): void {
 <!-- 理賠一覽 FAB -->
 <button
   type="button"
-  class="fixed bottom-6 right-6 z-1350 flex items-center gap-2 rounded-full bg-amber-500 px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-amber-600 cursor-pointer"
+  class="fixed right-6 z-1350 flex items-center gap-2 rounded-full bg-amber-500 px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-amber-600 cursor-pointer"
+  :class="selectedCount > 0 ? 'bottom-24' : 'bottom-6'"
   @click="toggleInsuranceDrawer"
 >
   <span>理賠特搜</span>

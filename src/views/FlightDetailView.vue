@@ -14,11 +14,13 @@ import { useRoute, useRouter } from 'vue-router';
 import { getFidsFlightByNumber } from '@/api/tdx/fids';
 import { useTdxBaseDataStore } from '@/stores/tdxBaseData';
 import { useFlightCacheStore } from '@/stores/flightCache';
+import { useClaimWorkspaceStore } from '@/stores/claimWorkspace';
 import { useInsuranceCheck } from '@/composables/useInsuranceCheck';
 import { useFlightTracking } from '@/composables/useFlightTracking';
 import { FlightDirection, InsuranceReasonType, type FidsFlight } from '@/types';
 import { formatToFullDateTime } from '@/utils/dateTime';
 import { getTripStatusMeta } from '@/utils/tripStatusMeta';
+import { getFlightId } from '@/utils/flightId';
 import InsuranceBadge from '@/components/fids/InsuranceBadge.vue';
 import FlightMap from '@/components/map/FlightMap.vue';
 import { nextTick, useTemplateRef } from 'vue';
@@ -27,6 +29,7 @@ const route = useRoute();
 const router = useRouter();
 const tdxStore = useTdxBaseDataStore();
 const flightCacheStore = useFlightCacheStore();
+const claimStore = useClaimWorkspaceStore();
 
 /** 查詢中狀態 */
 const isLoading = ref(true);
@@ -210,6 +213,19 @@ const tripStatusMeta = computed(() => (flight.value ? getTripStatusMeta(flight.v
 function goBackToSearch(): void {
   router.back();
 }
+
+/** 判斷目前檢視的航班是否已存在於理賠工作台中，供按鈕切換為「已加入」樣式 */
+const isInWorkspace = computed(() => {
+  if (!flight.value) return false;
+  const id = getFlightId(flight.value);
+  return claimStore.items.some((item) => item.id === id);
+});
+
+/** 將目前航班加入理賠工作台，重複加入時 store 內部會自動略過並顯示對應 Toast */
+function handleAddToWorkspace(): void {
+  if (!flight.value) return;
+  claimStore.addFlight(flight.value);
+}
 </script>
 
 <template>
@@ -384,8 +400,21 @@ function goBackToSearch(): void {
               : 'border-gray-200 bg-white'
         "
       >
-        <div class="mb-3 flex items-center justify-between">
+        <div class="mb-3 flex items-center justify-between gap-2">
           <h2 class="text-base font-semibold text-gray-800">不便險理賠資格分析</h2>
+          <button
+            type="button"
+            class="shrink-0 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-semibold transition"
+            :class="
+              isInWorkspace
+                ? 'cursor-not-allowed bg-gray-100 text-gray-400'
+                : 'cursor-pointer bg-amber-500 text-white hover:bg-amber-600'
+            "
+            :disabled="isInWorkspace"
+            @click="handleAddToWorkspace"
+          >
+            {{ isInWorkspace ? '✓ 已在理賠工作台' : '加入理賠工作台' }}
+          </button>
         </div>
 
         <InsuranceBadge :eligibility="eligibility" />

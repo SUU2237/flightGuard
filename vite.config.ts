@@ -4,6 +4,7 @@
  * Vite 專案設定檔
  * 設定 Vite 開發伺服器與打包規則，並定義 @ 代表 src/ 資料夾
  */
+/// <reference types="vitest/config" />
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import { fileURLToPath, URL } from 'node:url';
@@ -19,5 +20,9 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+  },
+  test: {
+    environment: 'jsdom',
+    include: ['src/**/__tests__/**/*.spec.ts'],
   },
 });

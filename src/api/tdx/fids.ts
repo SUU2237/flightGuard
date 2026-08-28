@@ -12,7 +12,7 @@ import {
  * TDX FIDS 航班動態原始回傳格式（僅擷取本專案需要使用的欄位）
  * 對應 GET /v2/Air/FIDS/Airport/{Arrival|Departure}
  */
-interface FidsFlightRaw {
+export interface FidsFlightRaw {
   FlightNumber: string;
   AirlineID: string;
   DepartureAirportID: string;
@@ -37,7 +37,7 @@ interface FidsFlightRaw {
  * 3. Remark 關鍵字比對（中英混合）→ Departed / Normal
  * 4. 都無法判定 → 沿用 TDX 原始 TripStatus 作為最後 fallback
  */
-function resolveTripStatus(
+export function resolveTripStatus(
   raw: FidsFlightRaw,
   scheduleTime: string | null,
   actualTime: string | null,
@@ -94,13 +94,44 @@ function mapFidsFlight(raw: FidsFlightRaw, direction: FlightDirection): FidsFlig
 }
 
 /**
+ * 正規化使用者輸入的航班號關鍵字：去除所有空白（含中間空白）並轉為大寫
+ * 例：" ci 791 " -> "CI791"
+ */
+export function normalizeFlightNumberKeyword(raw: string): string {
+  return raw.replace(/\s+/g, '').toUpperCase();
+}
+
+/**
+ * 依航班號關鍵字組裝 OData 查詢運算式
+ *
+ * TDX FIDS 資料的 AirlineID（航空公司代碼，如 "CI"）與 FlightNumber（純數字班次，如 "791"）
+ * 是兩個獨立欄位，畫面上顯示的完整班號（如 "CI791"）是前端自行拼接而成，因此依使用者輸入型態拆解查詢：
+ * - 純數字（如 "791"）：比對 FlightNumber
+ * - 純英文（如 "CI"）：比對 AirlineID
+ * - 英數混合（如 "CI791"）：拆解為航空公司代碼字首 + 數字班次，組合查詢
+ */
+function buildFlightNumberFilterExpr(flightNumberKeyword: string): string {
+  const normalized = normalizeFlightNumberKeyword(flightNumberKeyword);
+  const alphaPart = normalized.match(/^[A-Z]+/)?.[0] ?? '';
+  const numericPart = normalized.match(/\d+$/)?.[0] ?? '';
+
+  if (alphaPart && numericPart) {
+    return `AirlineID eq '${alphaPart}' and FlightNumber eq '${numericPart}'`;
+  }
+  if (alphaPart) {
+    return `AirlineID eq '${alphaPart}'`;
+  }
+  return `FlightNumber eq '${numericPart || normalized}'`;
+}
+
+/**
  * 依 FidsQueryParams 組合 TDX OData $filter 查詢字串
  *
- * 如果有指定航班號，組裝標準 OData 查詢語法 FlightNumber eq '106' 傳給 TDX 伺服器進行過濾
+ * 如果有指定航班號，組裝標準 OData 查詢語法傳給 TDX 伺服器進行過濾
  */
 function buildODataFilter(params: FidsQueryParams): string | undefined {
   if (!params.flightNumber) return undefined;
-  return `FlightNumber eq '${params.flightNumber.trim().toUpperCase()}'`;
+  return buildFlightNumberFilterExpr(params.flightNumber);
 }
 
 /**
@@ -168,7 +199,7 @@ export async function getFidsFlightByNumber(
   flightNumber: string,
   direction: FlightDirection,
 ): Promise<FidsFlight[]> {
-  const filter = `FlightNumber eq '${flightNumber.trim().toUpperCase()}'`;
+  const filter = buildFlightNumberFilterExpr(flightNumber);
 
   const endpoint =
     direction === FlightDirection.Departure

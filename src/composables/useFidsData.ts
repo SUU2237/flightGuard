@@ -5,6 +5,7 @@ import {
   getFidsFlightArrival,
   getFidsFlightDeparture,
   getFidsFlightByNumber,
+  normalizeFlightNumberKeyword,
 } from '@/api/tdx/fids';
 import { FlightDirection, type FidsFlight } from '@/types';
 import { useAirportSearch } from '@/composables/useAirportSearch';
@@ -33,12 +34,17 @@ export function useFidsData() {
   const isLoading = ref(false);
   /** 查詢錯誤訊息，成功則為 null */
   const error = ref<string | null>(null);
+  /** 是否已執行過至少一次查詢（用於區分「尚未查詢」與「查詢後查無結果」兩種空狀態） */
+  const hasSearched = ref(false);
 
   /**
    * 是否符合可發起查詢的最低條件（機場或航班號至少擇一）
    */
   const canSearch = computed(() => {
-    return Boolean(airport.selectedAirport.value) || Boolean(flightNumberKeyword.value.trim());
+    return (
+      Boolean(airport.selectedAirport.value) ||
+      Boolean(normalizeFlightNumberKeyword(flightNumberKeyword.value))
+    );
   });
 
   /**
@@ -59,10 +65,11 @@ export function useFidsData() {
 
     isLoading.value = true;
     error.value = null;
+    hasSearched.value = true;
 
     try {
-      // 1. 取得去空白後的航班號、已選機場、已選航空公司
-      const trimmedFlightNumber = flightNumberKeyword.value.trim();
+      // 1. 取得正規化後（去除所有空白、轉大寫）的航班號、已選機場、已選航空公司
+      const trimmedFlightNumber = normalizeFlightNumberKeyword(flightNumberKeyword.value);
       const selectedAirport = airport.selectedAirport.value;
       const selectedAirline = airline.selectedAirline.value;
       let result: FidsFlight[] = [];
@@ -193,6 +200,7 @@ export function useFidsData() {
     scopeMode.value = 'realtime';
     flightList.value = [];
     error.value = null;
+    hasSearched.value = false;
   }
 
   return {
@@ -205,6 +213,7 @@ export function useFidsData() {
     flightList,
     isLoading,
     error,
+    hasSearched,
     canSearch,
     clearFlightNumber,
     search,
