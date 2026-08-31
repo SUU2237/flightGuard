@@ -41,3 +41,6 @@ __screenshots__/
 .env
 node_modules/
 dist/
+
+# Claude Code 本機專屬設定（權限白名單等因人而異，不進版控）
+.claude/settings.local.json

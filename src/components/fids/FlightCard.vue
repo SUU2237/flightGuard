@@ -8,9 +8,11 @@
 import { computed } from 'vue';
 import { useInsuranceCheck } from '@/composables/useInsuranceCheck';
 import { useTdxBaseDataStore } from '@/stores/tdxBaseData';
+import { useClaimWorkspaceStore } from '@/stores/claimWorkspace';
 import { InsuranceReasonType, FlightDirection, type FidsFlight } from '@/types';
 import { formatToHourMinute } from '@/utils/dateTime';
 import { getTripStatusMeta } from '@/utils/tripStatusMeta';
+import { getFlightId } from '@/utils/flightId';
 import InsuranceBadge from '@/components/fids/InsuranceBadge.vue';
 
 const props = withDefaults(
@@ -33,9 +35,13 @@ const emit = defineEmits<{
 }>();
 
 const tdxStore = useTdxBaseDataStore();
+const claimStore = useClaimWorkspaceStore();
 
 /** 不便險理賠資格判定（傳入單一航班） */
 const { eligibility } = useInsuranceCheck(props.flight);
+
+/** 本航班是否已封存結案（存在於 claimWorkspace 的 archivedClaims），已結案航班不可再次加入工作台 */
+const isArchived = computed(() => claimStore.isArchived(getFlightId(props.flight)));
 
 /** 航空公司顯示名稱（優先中文名，查無則退回原始 IATA 代碼） */
 const airlineName = computed(() => {
@@ -78,6 +84,8 @@ const actualTimeValue = computed(() =>
 
 function handleClick(): void {
   if (props.selectable) {
+    // 已結案航班不可再次加入工作台，批次選取模式下直接忽略點擊
+    if (isArchived.value) return;
     emit('toggle-select', props.flight);
   } else {
     emit('select', props.flight);
@@ -88,7 +96,7 @@ function handleClick(): void {
 <template>
   <!-- 取消理賠用紅色系、延誤理賠用黃色系 -->
   <div
-    class="flex cursor-pointer flex-col rounded-xl border p-4 shadow-sm transition hover:shadow-md"
+    class="flex flex-col rounded-xl border p-4 shadow-sm transition hover:shadow-md"
     :class="[
       eligibility?.reasonType === InsuranceReasonType.Cancelled
         ? 'border-2 border-red-400 bg-red-50/60 hover:border-red-500'
@@ -96,7 +104,9 @@ function handleClick(): void {
           ? 'border-2 border-amber-400 bg-amber-50/60 hover:border-amber-500'
           : 'border-gray-200 bg-white hover:border-blue-300',
       selectable && selected ? 'ring-2 ring-blue-500 ring-offset-1' : '',
+      selectable && isArchived ? 'cursor-not-allowed grayscale opacity-60' : 'cursor-pointer',
     ]"
+    :title="selectable && isArchived ? '已結案，無法加入理賠工作台' : undefined"
     @click="handleClick"
   >
     <!-- 卡片頭部：批次選取 Checkbox / 航空公司 / 航班號 / TripStatus -->
@@ -106,10 +116,17 @@ function handleClick(): void {
         <div
           v-if="selectable"
           class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition"
-          :class="selected ? 'border-blue-600 bg-blue-600' : 'border-gray-300 bg-white'"
+          :class="
+            isArchived
+              ? 'cursor-not-allowed border-gray-200 bg-gray-100'
+              : selected
+                ? 'border-blue-600 bg-blue-600'
+                : 'border-gray-300 bg-white'
+          "
+          :title="isArchived ? '已結案，無法加入理賠工作台' : undefined"
         >
           <svg
-            v-if="selected"
+            v-if="selected && !isArchived"
             xmlns="http://www.w3.org/2000/svg"
             class="h-3.5 w-3.5 text-white"
             viewBox="0 0 20 20"

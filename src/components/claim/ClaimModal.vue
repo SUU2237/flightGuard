@@ -61,8 +61,10 @@ const displayItems = computed(() => {
 
   const sorted = [...filtered];
   if (sortMode.value === 'addedAt') {
+    //依加入時間：新到舊排序（時間戳記大的在前面）
     sorted.sort((a, b) => b.addedAt - a.addedAt);
   } else {
+    //依表定時間：早到晚排序（時間戳記小的在前面）
     sorted.sort((a, b) => new Date(getScheduleTimeISO(a)).getTime() - new Date(getScheduleTimeISO(b)).getTime());
   }
   return sorted;
@@ -239,7 +241,7 @@ function close(): void {
         </div>
       </div>
 
-      <!-- Footer：匯出 CSV / 清空全部（含防呆二次確認，於 store.clearAll 內處理） -->
+      <!-- Footer：匯出 CSV / 儲存並整理（將已核付/駁回案件封存並移出清單，防呆二次確認於 store.archiveProcessedClaims 內處理） -->
       <div v-if="claimStore.totalCount > 0" class="flex gap-2 border-t border-gray-200 px-5 py-3">
         <button
           type="button"
@@ -251,9 +253,9 @@ function close(): void {
         <button
           type="button"
           class="flex-1 cursor-pointer rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-500 transition hover:bg-red-50"
-          @click="claimStore.clearAll"
+          @click="claimStore.archiveProcessedClaims"
         >
-          清空全部案件
+          儲存並整理
         </button>
       </div>
     </div>

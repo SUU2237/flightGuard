@@ -221,9 +221,15 @@ const isInWorkspace = computed(() => {
   return claimStore.items.some((item) => item.id === id);
 });
 
-/** 將目前航班加入理賠工作台，重複加入時 store 內部會自動略過並顯示對應 Toast */
+/** 判斷目前檢視的航班是否已封存結案，已結案航班鎖定「加入理賠工作台」按鈕，不可再次加入 */
+const isArchived = computed(() => {
+  if (!flight.value) return false;
+  return claimStore.isArchived(getFlightId(flight.value));
+});
+
+/** 將目前航班加入理賠工作台；已封存結案則不執行，重複加入時 store 內部會自動略過並顯示對應 Toast */
 function handleAddToWorkspace(): void {
-  if (!flight.value) return;
+  if (!flight.value || isArchived.value) return;
   claimStore.addFlight(flight.value);
 }
 </script>
@@ -406,14 +412,14 @@ function handleAddToWorkspace(): void {
             type="button"
             class="shrink-0 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-semibold transition"
             :class="
-              isInWorkspace
-                ? 'cursor-not-allowed bg-gray-100 text-gray-400'
+              isInWorkspace || isArchived
+                ? 'cursor-not-allowed bg-gray-100 text-gray-400 border border-gray-200'
                 : 'cursor-pointer bg-amber-500 text-white hover:bg-amber-600'
             "
-            :disabled="isInWorkspace"
+            :disabled="isInWorkspace || isArchived"
             @click="handleAddToWorkspace"
           >
-            {{ isInWorkspace ? '✓ 已在理賠工作台' : '加入理賠工作台' }}
+            {{ isArchived ? '已結案' : isInWorkspace ? '✓ 已在理賠工作台' : '加入理賠工作台' }}
           </button>
         </div>
 
