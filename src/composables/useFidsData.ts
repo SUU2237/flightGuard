@@ -116,7 +116,7 @@ export function useFidsData() {
         result = await getFidsFlightByNumber(trimmedFlightNumber, direction.value);
       }
 
-      // Ⅲ. 機場+航空公司過濾
+      // Ⅲ. 在一二的基礎，直接從資料過濾出需要的航空公司
       if (selectedAirline) {
         result = result.filter((f) => f.airlineID === selectedAirline.airlineIATA);
       }
@@ -142,11 +142,9 @@ export function useFidsData() {
        * 用在今日全天模式
        */
       function getScheduleTimeISO(f: FidsFlight): string {
-        const primary = f.direction === FlightDirection.Departure ? f.scheduleDepartureTime : f.scheduleArrivalTime;
-
-        if (primary) return primary;
-
-        return f.scheduleDepartureTime || f.scheduleArrivalTime || '';
+        return (f.direction === FlightDirection.Departure 
+          ? f.scheduleDepartureTime 
+          : f.scheduleArrivalTime) || '';
       }
 
       // 8. 依據時間範圍模式（今日全天 vs 即時未來）進行時間過濾

@@ -156,7 +156,7 @@ export function useFlightTracking(flight: Ref<FidsFlight | null> | FidsFlight | 
           updatedAt: Date.now(),
         };
 
-        // 大圓航線僅在真實飛行中才計算，地面滑行時交由靜態表定航線顯示
+        // 大圓航線
         if (airborneStatus === FlightAirborneStatus.InAir) {
           const originCoord = getAirportCoordByIATA(currentFlight.departureAirportID);
           const destCoord = getAirportCoordByIATA(currentFlight.arrivalAirportID);

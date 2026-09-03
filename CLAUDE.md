@@ -64,11 +64,22 @@ src/
 
 ### `components/` —— 依業務領域分資料夾
 
-- **`common/`** —— 與業務邏輯無關的共用 UI 骨架：`DropdownList.vue`（純容器 + slot，負責 `<ul>/<li>` 樣式與 empty state）、`FilterDropdown.vue`（打字篩選 + 關鍵字高亮，泛型 `T`）、`RecommendDropdown.vue`（Focus 時的常見推薦清單，泛型 `T`），三者共同支撐 `useEntitySearch` 的 UI 呈現；`AppHeader.vue` 為全站頁首，內建理賠工作台入口按鈕與未結案筆數徽章。
+- **`common/`** —— 與業務邏輯無關的共用 UI 骨架：
+`DropdownList.vue`（純容器 + slot，負責 `<ul>/<li>` 樣式與 empty state）、
+`FilterDropdown.vue`（打字篩選 + 關鍵字高亮，泛型 `T`）、
+`RecommendDropdown.vue`（Focus 時的常見推薦清單，泛型 `T`），三者共同支撐 `useEntitySearch` 的 UI 呈現；
+`AppHeader.vue` 為全站頁首，內建理賠工作台入口按鈕與未結案筆數徽章。
 - **`search/SearchHeader.vue`** —— 搜尋列（機場/航空公司/航班號輸入框、方向切換、日期）。
-- **`fids/`** —— `FlightList.vue`（Loading 骨架屏／錯誤／空狀態／卡片清單四態切換，並在查無結果時提供「切換至另一方向查詢」按鈕以降低使用者重試造成的 429 機率）、`FlightCard.vue`（單張航班卡片，顯示時串接 `airlineID + flightNumber` 組成完整班號）、`InsuranceBadge.vue`（理賠資格徽章）。
-- **`claim/`** —— `ClaimModal.vue`（理賠工作台右側抽屜面板：篩選、排序、逐筆核付/駁回/移除、匯出 CSV）、`ClaimToast.vue`（全站掛載於 `App.vue` 的加入結果提示 Toast，由 `stores/claimWorkspace.ts` 集中控制顯示內容與 2 秒後自動關閉）。
-- **`map/`** —— `FlightMap.vue`（Leaflet 地圖主體，繪製起降機場 Marker、飛機圖示、大圓航線）、`RoutePolyline.vue`（純粹負責在既有地圖實例上繪製/更新/清除一條 Polyline，不渲染任何 DOM）。
+- **`fids/`** —— 
+`FlightList.vue`（Loading 骨架屏／錯誤／空狀態／卡片清單四態切換，並在查無結果時提供「切換至另一方向查詢」按鈕以降低使用者重試造成的 429 機率）、
+`FlightCard.vue`（單張航班卡片，顯示時串接 `airlineID + flightNumber` 組成完整班號）、
+`InsuranceBadge.vue`（理賠資格徽章）。
+- **`claim/`** —— 
+`ClaimModal.vue`（理賠工作台右側抽屜面板：篩選、排序、逐筆核付/駁回/移除、匯出 CSV）、
+`ClaimToast.vue`（全站掛載於 `App.vue` 的加入結果提示 Toast，由 `stores/claimWorkspace.ts` 集中控制顯示內容與 2 秒後自動關閉）。
+- **`map/`** —— 
+`FlightMap.vue`（Leaflet 地圖主體，繪製起降機場 Marker、飛機圖示、大圓航線）、
+`RoutePolyline.vue`（純粹負責在既有地圖實例上繪製/更新/清除一條 Polyline，不渲染任何 DOM）。
 
 ### `composables/` —— 可複用響應式邏輯
 
@@ -85,7 +96,13 @@ src/
 
 ### `types/` —— 型別定義
 
-依領域拆分為 `common.ts`（`SearchMode` 輸入框互動狀態列舉）、`tdx.ts`（`TdxAirport`／`TdxAirline`／`TripStatus`／`FlightDirection`／`FidsFlight`／`FidsQueryParams`）、`openSky.ts`（`OpenSkyStateVector`／`FlightAirborneStatus`／`FlightState`／`AircraftPosition`）、`insurance.ts`（`InsuranceReasonType`／`DelayCalculationResult`／`InsuranceEligibility`）、`claim.ts`（`ClaimStatus`／`ClaimItem`），統一由 `index.ts` 用 `export *` 匯出，其餘檔案一律從 `@/types` 引入、不直接指到子檔案。
+依領域拆分為 
+`common.ts`（`SearchMode` 輸入框互動狀態列舉）、
+`tdx.ts`（`TdxAirport`／`TdxAirline`／`TripStatus`／`FlightDirection`／`FidsFlight`／`FidsQueryParams`）、
+`openSky.ts`（`OpenSkyStateVector`／`FlightAirborneStatus`／`FlightState`／`AircraftPosition`）、
+`insurance.ts`（`InsuranceReasonType`／`DelayCalculationResult`／`InsuranceEligibility`）、
+`claim.ts`（`ClaimStatus`／`ClaimItem`），
+統一由 `index.ts` 用 `export *` 匯出，其餘檔案一律從 `@/types` 引入、不直接指到子檔案。
 
 ### `utils/` —— 純函式工具
 

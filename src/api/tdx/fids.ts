@@ -103,18 +103,28 @@ export function normalizeFlightNumberKeyword(raw: string): string {
 
 /**
  * 依航班號關鍵字組裝 OData 查詢運算式
- *
- * TDX FIDS 資料的 AirlineID（航空公司代碼，如 "CI"）與 FlightNumber（純數字班次，如 "791"）
- * 是兩個獨立欄位，畫面上顯示的完整班號（如 "CI791"）是前端自行拼接而成，因此依使用者輸入型態拆解查詢：
- * - 純數字（如 "791"）：比對 FlightNumber
- * - 純英文（如 "CI"）：比對 AirlineID
- * - 英數混合（如 "CI791"）：拆解為航空公司代碼字首 + 數字班次，組合查詢
+ * 注意：IATA 航空公司代碼並非全為純英文，捷星亞洲（3K）、濟州航空（7C）等英數混合代碼
  */
 function buildFlightNumberFilterExpr(flightNumberKeyword: string): string {
   const normalized = normalizeFlightNumberKeyword(flightNumberKeyword);
+  //1. 輸入只有純數字時，優先攔截（輸入6102）
+  if (/^\d+$/.test(normalized)) {
+    return `FlightNumber eq '${normalized}'`;
+  }
+  //2. 輸入標準 IATA（2碼）+ 且後面至少要接 1 個數字（輸入7C6102適用）
+  const combinedMatch = normalized.match(/^([A-Z0-9]{2})(\d+)$/);
+  if (combinedMatch) {
+    const [, airlineID, flightNumberPart] = combinedMatch;
+    return `AirlineID eq '${airlineID}' and FlightNumber eq '${flightNumberPart}'`;
+  }
+  //3. 單純輸入 2 碼代碼（英數字皆可，輸入7C適用）
+  if (/^[A-Z0-9]{2}$/.test(normalized)) {
+    return `AirlineID eq '${normalized}'`;
+  }
+
+  // 其餘非標準長度輸入，退回「字首英文 + 尾端數字」拆解以維持容錯
   const alphaPart = normalized.match(/^[A-Z]+/)?.[0] ?? '';
   const numericPart = normalized.match(/\d+$/)?.[0] ?? '';
-
   if (alphaPart && numericPart) {
     return `AirlineID eq '${alphaPart}' and FlightNumber eq '${numericPart}'`;
   }
