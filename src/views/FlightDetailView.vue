@@ -46,12 +46,20 @@ const hasArrivalTime = computed(() => Boolean(flight.value?.scheduleArrivalTime)
 
 /**
  * 拆解路由參數 id（格式："航班號-YYYYMMDD"）為航班號與日期字串
+ * 拆開原因：詳情頁發現記憶體沒快取時，必須親自打 API 向交通部 TDX 重新查資料。
  *「航空公司代碼」與「航班號數字」分開比對，避免不同公司相同班次號互相渲染錯誤的問題
  */
 function parseRouteId(
   id: string,
 ): { airlineIATA: string; flightDigits: string; dateStr: string } | null {
-  // 格式改用 [A-Z0-9]{2} 允許英數混合
+  /**
+   * 符合格式回傳id陣列[CI271-20260804, CI, 271, 2026, 08, 04]給match
+   * 
+   * 格式：
+   * 航空公司 IATA 代碼固定為 2 碼， [A-Z0-9]{2} 允許英數混合
+   * 航班號數字部分則為 1~4 碼， \d+ 允許 1~4 碼數字
+   * 日期部分為 YYYYMMDD，\d{4}\d{2}\d{2}，分別對應年、月、日
+  */
   const match = id.match(/^([A-Z0-9]{2})(\d+)-(\d{4})(\d{2})(\d{2})$/i);
   if (!match) return null;
 
@@ -100,7 +108,7 @@ async function loadFlightDetail(): Promise<void> {
   error.value = null;
 
   try {
-    // 因為 TDX 的 FlightNumber 欄位僅存純數字（如 "106"），故傳入純數字 parsed.flightDigits 呼叫 API，航空公司代碼留到比對階段再核對
+    // 航班號（數字）符合的
     const [departures, arrivals] = await Promise.all([
       getFidsFlightByNumber(parsed.flightDigits, FlightDirection.Departure),
       getFidsFlightByNumber(parsed.flightDigits, FlightDirection.Arrival),
@@ -111,7 +119,8 @@ async function loadFlightDetail(): Promise<void> {
     // 三層精準比對 —— 航空公司代碼 + 航班號數字部分 + 表定出發日期，
     // 徹底排除「不同公司但班次數字剛好相同」互相渲染錯誤的可能性
     const matched = candidates.find((f) => {
-      const numericPart = f.flightNumber.replace(/^[A-Z]+/i, '');
+      const airlineRegex = new RegExp(`^${f.airlineID}`, 'i');
+      const numericPart = f.flightNumber.replace(airlineRegex, '');
       const dateToCompare = f.scheduleDepartureTime || f.scheduleArrivalTime;
       return (
         f.airlineID.toUpperCase() === parsed.airlineIATA &&
@@ -119,8 +128,6 @@ async function loadFlightDetail(): Promise<void> {
         isSameLocalDate(dateToCompare, parsed.dateStr)
       );
     });
-
-    console.log('[FlightDetailView] 路由參數解析:', parsed, '比對結果:', matched);
 
     if (!matched) {
       error.value = '查無此航班資料，可能已過期或航班號有誤';
@@ -170,17 +177,11 @@ onMounted(() => {
 });
 
 /** 不便險理賠資格判定 */
-const { eligibility } = useInsuranceCheck(flight);
+const { eligibility } = useInsuranceCheck(flight);      //宣告一個名為 eligibility 的常數，並自動把回傳物件裡同名屬性的值塞進去
 
 /** OpenSky 即時追蹤狀態，於此統一呼叫、往下傳給 FlightMap，避免重複發送 OpenSky 請求 */
 const { isInAir, hasLivePosition, flightState, routeArc, isLoading: isTrackingLoading, error: trackingError, isOutOfRadarCoverage } =
   useFlightTracking(flight);
-
-// 【診斷】確認 OpenSky 查詢結果是否真的有資料，若 flightState 持續為 null
-// 或 airborneStatus 非 IN_AIR，代表該航班目前查無 OpenSky 對應飛機（可能呼號轉換失敗或飛機不在空中）
-watch(flightState, (val) => {
-  console.debug('[FlightDetailView] flightState 更新:', val);
-});
 
 /** 航空公司顯示名稱 */
 const airlineName = computed(() => {
@@ -203,7 +204,7 @@ const arrivalAirportName = computed(() => {
   return airport?.airportName ?? flight.value.arrivalAirportID;
 });
 
-/** TripStatus 對應的顯示標籤與樣式 */
+/** 載入 TripStatus 對應的顯示標籤與樣式 */
 const tripStatusMeta = computed(() => (flight.value ? getTripStatusMeta(flight.value.tripStatus) : null));
 
 /**

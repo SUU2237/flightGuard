@@ -91,6 +91,7 @@ function toggleSelectAll(): void {
 
 /** 將已選取的航班批次加入理賠工作台，完成後清空選取並關閉選取模式 */
 function addSelectedToWorkspace(): void {
+  //確認被記在勾選的航班，仍然存在於目前的搜尋結果中
   const selectedFlights = fids.flightList.value.filter((f) => selectedFlightIds.value.has(getFlightId(f)));
   claimStore.batchAddFlights(selectedFlights);
   selectedFlightIds.value = new Set();

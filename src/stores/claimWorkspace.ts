@@ -93,7 +93,7 @@ export const useClaimWorkspaceStore = defineStore('claimWorkspace', () => {
   }
 
   /**
-   * 依「新增筆數」「重複略過筆數」「已結案封存略過筆數」組出對應的 Toast 文案並顯示
+   * 依「真實成功新增的筆數」「因為重複所以略過的筆數」「已被封存所以需要略過筆數」組出對應的 Toast 文案並顯示
    * 三者皆為 0（如呼叫 batchAddFlights([])）時不顯示提示
    * 不含已結案略過時沿用既有文案；只要出現已結案略過，改用組合式文案明確標示原因
    */
@@ -116,6 +116,7 @@ export const useClaimWorkspaceStore = defineStore('claimWorkspace', () => {
       return;
     }
 
+    //較少見的狀態使用組合：同時有新增、重複、已結案
     const parts: string[] = [];
     if (addedCount > 0) parts.push(`已匯入 ${addedCount} 筆`);
     parts.push(`${archivedSkippedCount} 筆已結案略過`);
@@ -123,7 +124,7 @@ export const useClaimWorkspaceStore = defineStore('claimWorkspace', () => {
     showToast(parts.join('，'));
   }
 
-  // 只要案件清單有變動，就同步寫回 localStorage
+  // 只要工作台的案件清單有變動，就同步寫回 localStorage（加上 deep 才能抓到陣列內部元素屬性的修改）
   watch(
     items,
     (value) => {
@@ -177,9 +178,8 @@ export const useClaimWorkspaceStore = defineStore('claimWorkspace', () => {
   type AddOutcome = 'added' | 'duplicate' | 'archived';
 
   /**
-   * 新增單一航班至工作台的內部實作，回傳新增結果分類供呼叫端統計
+   * 判斷新增進工作台的航班是成功or重複or已結案
    * 依航班目前是否符合不便險理賠資格，自動判定初始狀態為「待審核」或「追蹤中」
-   * 若該航班（相同 id）已存在於清單中，則不重複加入；若已封存結案（archivedClaims），一律拒絕再次加入
    */
   function addFlightInternal(flight: FidsFlight): AddOutcome {
     const id = getFlightId(flight);
@@ -208,8 +208,7 @@ export const useClaimWorkspaceStore = defineStore('claimWorkspace', () => {
   }
 
   /**
-   * 批次新增多筆航班，內部逐筆呼叫 addFlightInternal，已存在或已封存結案的航班會自動略過達成去重效果
-   * 統計本次「實際新增筆數」「重複略過筆數」「已結案略過筆數」，依結果顯示對應 Toast 文案
+   * 計算三種加入狀態（可新增、重複、已結案）各有幾筆，供toast顯示
    */
   function batchAddFlights(flights: FidsFlight[]): void {
     let addedCount = 0;
@@ -227,7 +226,7 @@ export const useClaimWorkspaceStore = defineStore('claimWorkspace', () => {
   }
 
   /**
-   * 移除單一案件
+   * 移除單一案件：不是要刪除的FlightId都留下來
    */
   function removeFlight(flightId: string): void {
     items.value = items.value.filter((item) => item.id !== flightId);

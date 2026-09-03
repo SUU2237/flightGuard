@@ -16,11 +16,15 @@ const UTF8_BOM = '﻿';
 
 /**
  * 將表頭與資料列組合為 CSV 字串並觸發瀏覽器下載
+ * 
+ * 因為前端不能直接強制把檔案寫入使用者的硬碟，只能在背景偷偷建一個隱藏的超連結 <a>，
+ * 設定好 download 屬性，用程式碼呼叫 link.click() 觸發瀏覽器的檔案下載視窗，
+ * 最後再把連結拔掉、釋放記憶體。
  */
 export function downloadCsv(filename: string, headers: string[], rows: string[][]): void {
   const lines = [headers, ...rows].map((row) => row.map(escapeCsvField).join(','));
   const csvContent = UTF8_BOM + lines.join('\r\n');
-
+  //轉成二進位檔案物件（Blob）與虛擬暫存下載連結
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
 

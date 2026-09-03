@@ -121,7 +121,7 @@ function handleToggleSelect(flight: FidsFlight): void {
         {{
           hasSearched && oppositeDirectionLabel
             ? `請調整搜尋條件後重新查詢，或試試切換至「${oppositeDirectionLabel}」查詢`
-            : '請調整搜尋條件後重新查詢'
+            : '請至少輸入機場或航班號後重新查詢'
         }}
       </p>
       <button
